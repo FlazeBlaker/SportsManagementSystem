@@ -620,13 +620,19 @@ public class SetupWizardController {
         openBox.setValue(rule.getOpenTime());
         openBox.setStyle("-fx-background-color: #334155; -fx-font-size: 10px;");
         openBox.setPrefWidth(100);
-        openBox.setOnAction(e -> rule.setOpenTime(openBox.getValue()));
+        openBox.setOnAction(e -> {
+            String v = openBox.getValue();
+            rule.setOpenTime("24:00".equals(v) ? "00:00" : v);
+        });
 
         ComboBox<String> closeBox = generateTimeCombo();
         closeBox.setValue(rule.getCloseTime());
         closeBox.setStyle("-fx-background-color: #334155; -fx-font-size: 10px;");
         closeBox.setPrefWidth(100);
-        closeBox.setOnAction(e -> rule.setCloseTime(closeBox.getValue()));
+        closeBox.setOnAction(e -> {
+            String v = closeBox.getValue();
+            rule.setCloseTime("24:00".equals(v) ? "00:00" : v);
+        });
 
         CheckBox isClosed = new CheckBox("Closed");
         isClosed.setSelected(rule.isClosed());
@@ -675,6 +681,7 @@ public class SetupWizardController {
             box.getItems().add(String.format("%02d:00", i));
             box.getItems().add(String.format("%02d:30", i));
         }
+        box.getItems().add("24:00");
         return box;
     }
 
@@ -974,8 +981,10 @@ public class SetupWizardController {
                 }
 
                 // Check for overlaps
-                LocalTime newStart = LocalTime.parse(ruleStartField.getText());
-                LocalTime newEnd = LocalTime.parse(ruleEndField.getText());
+                String sTxt = ruleStartField.getText();
+                String eTxt = ruleEndField.getText();
+                LocalTime newStart = LocalTime.parse("24:00".equals(sTxt) ? "00:00" : sTxt);
+                LocalTime newEnd = LocalTime.parse("24:00".equals(eTxt) ? "00:00" : eTxt);
                 if (newEnd.equals(LocalTime.MIN) || newEnd.isBefore(newStart)) {
                     newEnd = LocalTime.MAX;
                 }

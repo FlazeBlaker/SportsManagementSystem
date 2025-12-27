@@ -33,8 +33,10 @@ public class ConfigManager {
         if (file.exists()) {
             try (FileReader reader = new FileReader(file)) {
                 currentConfig = gson.fromJson(reader, AppConfig.class);
-            } catch (IOException e) {
-                logger.error("Failed to load config file", e);
+            } catch (Exception e) {
+                logger.error("Failed to load config file: " + e.getMessage());
+                e.printStackTrace(); // Print to stderr for debugging
+                currentConfig = null; // Trigger default rollback
             }
         }
 

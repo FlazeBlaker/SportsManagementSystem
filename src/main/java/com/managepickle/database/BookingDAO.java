@@ -47,17 +47,45 @@ public class BookingDAO {
     }
 
     public static boolean isBookingOverlapping(int courtId, LocalDateTime start, LocalDateTime end) {
-        String sql = "SELECT COUNT(*) FROM bookings WHERE court_id = ? AND status != 'CANCELLED' " +
-                "AND ((start_time < ? AND end_time > ?) OR (start_time >= ? AND start_time < ?))";
+        return isBookingOverlapping(courtId, start, end, -1);
+    }
+
+    /**
+     * Check if a booking overlaps with existing bookings on the same court,
+     * excluding a specific booking ID.
+     * This is used when updating a booking to ensure the new time slot doesn't
+     * conflict with OTHER bookings.
+     * 
+     * @param courtId          The court ID
+     * @param start            Start time of the booking
+     * @param end              End time of the booking
+     * @param excludeBookingId The booking ID to exclude from the check (-1 to
+     *                         include all)
+     * @return true if there is an overlap, false otherwise
+     */
+    public static boolean isBookingOverlapping(int courtId, LocalDateTime start, LocalDateTime end,
+            int excludeBookingId) {
+        String sql;
+        if (excludeBookingId > 0) {
+            sql = "SELECT COUNT(*) FROM bookings WHERE court_id = ? AND status != 'CANCELLED' AND booking_id != ? " +
+                    "AND ((start_time < ? AND end_time > ?) OR (start_time >= ? AND start_time < ?))";
+        } else {
+            sql = "SELECT COUNT(*) FROM bookings WHERE court_id = ? AND status != 'CANCELLED' " +
+                    "AND ((start_time < ? AND end_time > ?) OR (start_time >= ? AND start_time < ?))";
+        }
 
         try (Connection conn = DatabaseManager.connect();
                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setInt(1, courtId);
-            pstmt.setString(2, end.format(Dtf)); // Use Dtf for consistency
-            pstmt.setString(3, start.format(Dtf)); // Use Dtf for consistency
-            pstmt.setString(4, start.format(Dtf)); // Use Dtf for consistency
-            pstmt.setString(5, end.format(Dtf)); // Use Dtf for consistency
+            int paramIndex = 1;
+            pstmt.setInt(paramIndex++, courtId);
+            if (excludeBookingId > 0) {
+                pstmt.setInt(paramIndex++, excludeBookingId);
+            }
+            pstmt.setString(paramIndex++, end.format(Dtf));
+            pstmt.setString(paramIndex++, start.format(Dtf));
+            pstmt.setString(paramIndex++, start.format(Dtf));
+            pstmt.setString(paramIndex++, end.format(Dtf));
 
             ResultSet rs = pstmt.executeQuery();
             if (rs.next()) {

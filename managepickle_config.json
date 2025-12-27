@@ -1,0 +1,125 @@
+{
+  "openingTime": "06:00",
+  "closingTime": "23:00",
+  "courts": [
+    {
+      "id": 1,
+      "name": "1",
+      "iconCode": "mdmz-sports_tennis",
+      "environmentType": "Indoor",
+      "hourlyRate": 0.0,
+      "useGlobalRates": true
+    },
+    {
+      "id": 2,
+      "name": "2",
+      "iconCode": "mdmz-sports_tennis",
+      "environmentType": "Indoor",
+      "hourlyRate": 0.0,
+      "useGlobalRates": true
+    },
+    {
+      "id": 3,
+      "name": "3",
+      "iconCode": "mdmz-sports_tennis",
+      "environmentType": "Indoor",
+      "hourlyRate": 0.0,
+      "useGlobalRates": true
+    },
+    {
+      "id": 4,
+      "name": "4",
+      "iconCode": "mdmz-sports_tennis",
+      "environmentType": "Indoor",
+      "hourlyRate": 0.0,
+      "useGlobalRates": true
+    }
+  ],
+  "resourceName": "Court",
+  "resourceNamePlural": "Courts",
+  "minSlotDuration": 60,
+  "venueLogoPath": "C:\\Users\\Jay Pawar\\OneDrive\\Pictures\\AceAlleyLogo.jpeg",
+  "brandColor": "#7C3AED",
+  "navbarColor": "rgba(30, 41, 59, 0.85)",
+  "panelColor": "#1E293B",
+  "outlineColor": "#10B981",
+  "textColor": "#FFFFFF",
+  "backgroundColor": "#0F172A",
+  "currencySymbol": "₹",
+  "hasCafe": true,
+  "hasRentals": true,
+  "hasProducts": true,
+  "cafeMenu": [
+    {
+      "name": "water",
+      "price": 20.0,
+      "category": "drink"
+    }
+  ],
+  "rentalOptions": [
+    {
+      "name": "Paddle",
+      "price": 50.0,
+      "type": "HOURLY"
+    }
+  ],
+  "productCatalog": [
+    {
+      "name": "Ace Alley Paddle",
+      "price": 3000.0,
+      "category": "Paddle"
+    }
+  ],
+  "operatingSchedule": [
+    {
+      "name": "Weekdays",
+      "days": [
+        "MONDAY",
+        "TUESDAY",
+        "WEDNESDAY",
+        "THURSDAY",
+        "FRIDAY"
+      ],
+      "openTime": "06:00",
+      "closeTime": "00:00",
+      "is24Hours": false,
+      "isClosed": false
+    },
+    {
+      "name": "Weekends",
+      "days": [
+        "SATURDAY",
+        "SUNDAY"
+      ],
+      "openTime": "06:00",
+      "closeTime": "23:00",
+      "is24Hours": true,
+      "isClosed": false
+    }
+  ],
+  "globalPricingRules": [
+    {
+      "name": "Weekdays",
+      "rate": 650.0,
+      "days": [
+        "MONDAY",
+        "TUESDAY",
+        "WEDNESDAY",
+        "THURSDAY",
+        "FRIDAY"
+      ],
+      "startTime": "00:00",
+      "endTime": "00:00"
+    },
+    {
+      "name": "Weekends",
+      "rate": 700.0,
+      "days": [
+        "SATURDAY",
+        "SUNDAY"
+      ],
+      "startTime": "00:00",
+      "endTime": "00:00"
+    }
+  ]
+}

@@ -28,38 +28,23 @@
         <Label text="Phone:" GridPane.columnIndex="0" GridPane.rowIndex="2" style="-fx-text-fill: #CBD5E1;"/>
         <TextField fx:id="customerPhoneField" GridPane.columnIndex="1" GridPane.rowIndex="2" prefWidth="250"/>
 
-        <Label text="Date:" GridPane.columnIndex="0" GridPane.rowIndex="3" style="-fx-text-fill: #CBD5E1;"/>
-        <DatePicker fx:id="datePicker" GridPane.columnIndex="1" GridPane.rowIndex="3" prefWidth="250"/>
+        <Label text="Start Time:" GridPane.columnIndex="0" GridPane.rowIndex="3" style="-fx-text-fill: #CBD5E1;"/>
+        <ComboBox fx:id="startTimeComboBox" GridPane.columnIndex="1" GridPane.rowIndex="3" prefWidth="250"/>
 
-        <Label text="Start Time:" GridPane.columnIndex="0" GridPane.rowIndex="4" style="-fx-text-fill: #CBD5E1;"/>
-        <ComboBox fx:id="startTimeComboBox" GridPane.columnIndex="1" GridPane.rowIndex="4" prefWidth="250"/>
-
-        <Label text="End Time:" GridPane.columnIndex="0" GridPane.rowIndex="5" style="-fx-text-fill: #CBD5E1;"/>
-        <ComboBox fx:id="endTimeComboBox" GridPane.columnIndex="1" GridPane.rowIndex="5" prefWidth="250"/>
+        <Label text="End Time:" GridPane.columnIndex="0" GridPane.rowIndex="4" style="-fx-text-fill: #CBD5E1;"/>
+        <ComboBox fx:id="endTimeComboBox" GridPane.columnIndex="1" GridPane.rowIndex="4" prefWidth="250"/>
         
-        <Label fx:id="courtCostLabel" text="Court Cost:" GridPane.columnIndex="0" GridPane.rowIndex="6" style="-fx-text-fill: #94A3B8; -fx-font-size: 13px;"/>
-        <Label fx:id="courtPriceLabel" text="0.00" GridPane.columnIndex="1" GridPane.rowIndex="6" style="-fx-text-fill: white; -fx-font-size: 14px;"/>
+        <Label fx:id="courtCostLabel" text="Court Cost:" GridPane.columnIndex="0" GridPane.rowIndex="5" style="-fx-text-fill: #94A3B8; -fx-font-size: 13px;"/>
+        <Label fx:id="courtPriceLabel" text="0.00" GridPane.columnIndex="1" GridPane.rowIndex="5" style="-fx-text-fill: white; -fx-font-size: 14px;"/>
 
-        <Label text="Extras Total:" GridPane.columnIndex="0" GridPane.rowIndex="7" style="-fx-text-fill: #94A3B8; -fx-font-size: 13px;"/>
-        <Label fx:id="extrasPriceLabel" text="0.00" GridPane.columnIndex="1" GridPane.rowIndex="7" style="-fx-text-fill: white; -fx-font-size: 14px;"/>
+        <Label text="Extras Total:" GridPane.columnIndex="0" GridPane.rowIndex="6" style="-fx-text-fill: #94A3B8; -fx-font-size: 13px;"/>
+        <Label fx:id="extrasPriceLabel" text="0.00" GridPane.columnIndex="1" GridPane.rowIndex="6" style="-fx-text-fill: white; -fx-font-size: 14px;"/>
 
-        <Label text="Payable Amount:" GridPane.columnIndex="0" GridPane.rowIndex="8" style="-fx-font-weight: bold; -fx-text-fill: white; -fx-font-size: 16px;"/>
-        <Label fx:id="priceLabel" text="0.00" GridPane.columnIndex="1" GridPane.rowIndex="8" style="-fx-font-weight: bold; -fx-font-size: 22px; -fx-text-fill: #10B981;"/>
+        <Label text="Payable Amount:" GridPane.columnIndex="0" GridPane.rowIndex="7" style="-fx-font-weight: bold; -fx-text-fill: white; -fx-font-size: 16px;"/>
+        <Label fx:id="priceLabel" text="0.00" GridPane.columnIndex="1" GridPane.rowIndex="7" style="-fx-font-weight: bold; -fx-font-size: 22px; -fx-text-fill: #10B981;"/>
     </GridPane>
 
-    <!-- Extras Section -->
-    <VBox spacing="10" VBox.vgrow="ALWAYS">
-        <VBox fx:id="cafeSection" spacing="5">
-            <Label text="Cafe &amp; Refreshments" style="-fx-text-fill: white; -fx-font-weight: bold;"/>
-            <VBox fx:id="cafeItemsContainer" spacing="8" style="-fx-background-color: rgba(255,255,255,0.05); -fx-padding: 10; -fx-background-radius: 12;"/>
-        </VBox>
-        
-        <VBox fx:id="rentalSection" spacing="5">
-            <Label text="Rental Gear" style="-fx-text-fill: white; -fx-font-weight: bold;"/>
-            <HBox fx:id="rentalSelectorContainer" spacing="10"/>
-            <VBox fx:id="selectedRentalsContainer" spacing="5" style="-fx-padding: 5 0 0 0;"/>
-        </VBox>
-    </VBox>
+    <!-- Extras Section Removed -->
     
     <!-- Warning Label -->
     <Label fx:id="warningLabel" text="" 

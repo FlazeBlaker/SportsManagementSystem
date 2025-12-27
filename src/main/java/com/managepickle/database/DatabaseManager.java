@@ -122,6 +122,16 @@ public class DatabaseManager {
                 logger.warn("Column environment_type may already exist", e);
             }
 
+            try {
+                ResultSet rs = conn.getMetaData().getColumns(null, null, "courts", "use_global_rates");
+                if (!rs.next()) {
+                    stmt.execute("ALTER TABLE courts ADD COLUMN use_global_rates INTEGER DEFAULT 1");
+                    logger.info("Added use_global_rates column to courts table");
+                }
+            } catch (SQLException e) {
+                logger.warn("Column use_global_rates may already exist", e);
+            }
+
             logger.info("Database initialized (Users, Courts, Bookings, Config).");
 
             // Default admin will be created via Setup Wizard

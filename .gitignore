@@ -17,4 +17,4 @@ target/
 *.iws
 .vscode/
 .DS_Store
-managepickle_config.json
+

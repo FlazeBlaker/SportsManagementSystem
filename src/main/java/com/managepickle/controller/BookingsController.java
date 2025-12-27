@@ -1,7 +1,6 @@
 package com.managepickle.controller;
 
 import com.managepickle.database.BookingDAO;
-import com.managepickle.database.ConfigDAO;
 import com.managepickle.database.CourtDAO;
 import com.managepickle.model.Booking;
 import com.managepickle.model.Court;
@@ -9,7 +8,6 @@ import com.managepickle.model.AppConfig;
 import com.managepickle.utils.ConfigManager;
 import javafx.animation.*;
 import javafx.fxml.FXML;
-import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.*;
@@ -60,6 +58,11 @@ public class BookingsController {
 
     private LocalDate currentDate = LocalDate.now();
 
+    // Track slots by booking ID for multi-slot highlighting
+    private java.util.Map<Integer, java.util.List<StackPane>> bookingSlots = new java.util.HashMap<>();
+    // Track original styles for slots to restore on mouse exit
+    private java.util.Map<StackPane, String> slotOriginalStyles = new java.util.HashMap<>();
+
     // Default theme colors
     private String panelColor = "#1E293B";
     private String outlineColor = "#10B981";
@@ -94,9 +97,12 @@ public class BookingsController {
 
             // Set up DatePicker
             datePicker.setValue(currentDate);
-            datePicker.setOnAction(e -> {
-                currentDate = datePicker.getValue();
-                refresh();
+            datePicker.valueProperty().addListener((obs, oldVal, newVal) -> {
+                if (newVal != null) {
+                    currentDate = newVal;
+                    System.out.println("DEBUG: Date Changed to: " + currentDate);
+                    refresh();
+                }
             });
 
             refresh();
@@ -116,14 +122,23 @@ public class BookingsController {
     }
 
     private void buildPremiumGrid() {
+        com.managepickle.model.OperatingHours hours = com.managepickle.service.PricingService
+                .getOperatingHours(currentDate);
+
         courtsHeader.getChildren().clear();
         timeLabels.getChildren().clear();
         bookingGrid.getChildren().clear();
 
-        String startStr = ConfigDAO.getValue("opening_time", "06:00");
-        String endStr = ConfigDAO.getValue("closing_time", "23:00");
-        LocalTime startTime = LocalTime.parse(startStr);
-        LocalTime endTime = LocalTime.parse(endStr);
+        if (hours.isClosed()) {
+            Label closedLabel = new Label("VENUE CLOSED ON " + currentDate.getDayOfWeek());
+            closedLabel.setStyle(
+                    "-fx-text-fill: #EF4444; -fx-font-size: 24px; -fx-font-weight: bold; -fx-padding: 100 0 0 0;");
+            bookingGrid.add(closedLabel, 0, 0);
+            return;
+        }
+
+        int startHour = hours.getStartHour();
+        int endHour = hours.getEndHour();
 
         List<Court> courts = CourtDAO.getAllCourts();
 
@@ -174,39 +189,52 @@ public class BookingsController {
         }
 
         // Build Time Grid
-        int startHour = startTime.getHour();
-        int endHour = endTime.getHour();
         int row = 0;
         LocalTime currentTime = LocalTime.now();
 
         for (int h = startHour; h <= endHour; h++) {
-            VBox timeBlock = new VBox(5);
-            timeBlock.setPrefHeight(70);
-            timeBlock.setPrefWidth(70);
-            timeBlock.setAlignment(Pos.TOP_RIGHT);
+            try {
+                VBox timeBlock = new VBox(5);
+                timeBlock.setPrefHeight(70);
+                timeBlock.setPrefWidth(70);
+                timeBlock.setAlignment(Pos.TOP_RIGHT);
 
-            Label hourLabel = new Label(String.format("%02d:00", h));
-            hourLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: white;");
+                Label hourLabel = new Label(String.format("%02d:00", h));
+                hourLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: white;");
 
-            Label periodLabel = new Label(h < 12 ? "AM" : "PM");
-            periodLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: #64748B;");
+                Label periodLabel = new Label(h < 12 ? "AM" : "PM");
+                periodLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: #64748B;");
 
-            timeBlock.getChildren().addAll(hourLabel, periodLabel);
+                timeBlock.getChildren().addAll(hourLabel, periodLabel);
 
-            if (h == currentTime.getHour()) {
-                timeBlock.setStyle(
-                        "-fx-background-color: rgba(124, 58, 237, 0.2); -fx-background-radius: 12; -fx-padding: 10;");
+                if (h == currentTime.getHour()) {
+                    timeBlock.setStyle(
+                            "-fx-background-color: rgba(124, 58, 237, 0.2); -fx-background-radius: 12; -fx-padding: 10;");
+                }
+
+                timeLabels.getChildren().add(timeBlock);
+
+                for (int col = 0; col < courts.size(); col++) {
+                    try {
+                        StackPane slot = createPremiumSlot(courts.get(col), h);
+                        bookingGrid.add(slot, col, row);
+                    } catch (Exception slotEx) {
+                        System.err.println(
+                                "Error creating slot for court " + col + " hour " + h + ": " + slotEx.getMessage());
+                        StackPane errorSlot = new StackPane(new Label("!"));
+                        bookingGrid.add(errorSlot, col, row);
+                    }
+                }
+                row++;
+            } catch (Exception rowEx) {
+                System.err.println("Error creating row for hour " + h + ": " + rowEx.getMessage());
             }
-
-            timeLabels.getChildren().add(timeBlock);
-
-            for (int col = 0; col < courts.size(); col++) {
-                StackPane slot = createPremiumSlot(courts.get(col), h);
-                bookingGrid.add(slot, col, row);
-            }
-            row++;
         }
 
+        // Clear tracking maps before rendering
+        bookingSlots.clear();
+        slotOriginalStyles.clear();
+        System.out.println("[DEBUG] Cleared booking slots map");
         renderPremiumBookings(courts, startHour, endHour);
     }
 
@@ -298,39 +326,65 @@ public class BookingsController {
             content.getChildren().addAll(customerLabel, statusBadge, timeLabel);
             slot.getChildren().add(content);
 
+            // Track this slot for multi-slot highlighting
+            bookingSlots.computeIfAbsent(booking.getId(), k -> new java.util.ArrayList<>()).add(slot);
+            // Store original style for this slot
+            slotOriginalStyles.put(slot, slot.getStyle());
+            System.out.println("[DEBUG] Added slot for booking ID: " + booking.getId()
+                    + ", total slots for this booking: " + bookingSlots.get(booking.getId()).size());
+
             // Click to view details
             final Booking finalBooking = booking;
             slot.setOnMouseClicked(e -> showBookingDetails(finalBooking));
 
-            // Hover effect for booked slots
+            // Hover effect for booked slots - highlights ALL related slots
             final String finalStatusColor = statusColor;
+            final int bookingId = booking.getId();
             slot.setOnMouseEntered(e -> {
-                ScaleTransition st = new ScaleTransition(Duration.millis(200), slot);
-                st.setToX(1.03);
-                st.setToY(1.03);
-                st.play();
-                slot.setStyle(
-                        String.format(
-                                "-fx-background-color: linear-gradient(to bottom, rgba(%s, 0.4), rgba(%s, 0.2));",
-                                finalStatusColor, finalStatusColor) +
-                                "-fx-background-radius: 12;" +
-                                String.format("-fx-border-color: rgba(%s, 0.7);", finalStatusColor) +
-                                "-fx-border-width: 2;" +
-                                "-fx-border-radius: 12;" +
-                                String.format("-fx-effect: dropshadow(gaussian, rgba(%s, 0.6), 16, 0, 0, 4),",
-                                        finalStatusColor)
-                                +
-                                "            innershadow(gaussian, rgba(255, 255, 255, 0.3), 10, 0, 0, 2);" +
-                                "-fx-cursor: hand;");
+                System.out.println("[DEBUG] Mouse entered booking ID: " + bookingId);
+                // Highlight all slots for this booking
+                java.util.List<StackPane> relatedSlots = bookingSlots.get(bookingId);
+                System.out.println(
+                        "[DEBUG] Related slots count: " + (relatedSlots != null ? relatedSlots.size() : "null"));
+                if (relatedSlots != null) {
+                    for (StackPane relatedSlot : relatedSlots) {
+                        ScaleTransition st = new ScaleTransition(Duration.millis(200), relatedSlot);
+                        st.setToX(1.03);
+                        st.setToY(1.03);
+                        st.play();
+                        relatedSlot.setStyle(
+                                String.format(
+                                        "-fx-background-color: linear-gradient(to bottom, rgba(%s, 0.4), rgba(%s, 0.2));",
+                                        finalStatusColor, finalStatusColor) +
+                                        "-fx-background-radius: 12;" +
+                                        String.format("-fx-border-color: rgba(%s, 0.7);", finalStatusColor) +
+                                        "-fx-border-width: 2;" +
+                                        "-fx-border-radius: 12;" +
+                                        String.format("-fx-effect: dropshadow(gaussian, rgba(%s, 0.6), 16, 0, 0, 4),",
+                                                finalStatusColor)
+                                        +
+                                        "            innershadow(gaussian, rgba(255, 255, 255, 0.3), 10, 0, 0, 2);" +
+                                        "-fx-cursor: hand;");
+                    }
+                }
             });
 
-            final String bookedStyle = slot.getStyle();
             slot.setOnMouseExited(e -> {
-                ScaleTransition st = new ScaleTransition(Duration.millis(200), slot);
-                st.setToX(1.0);
-                st.setToY(1.0);
-                st.play();
-                slot.setStyle(bookedStyle);
+                System.out.println("[DEBUG] Mouse exited booking ID: " + bookingId);
+                // Reset all slots for this booking to their original styles
+                java.util.List<StackPane> relatedSlots = bookingSlots.get(bookingId);
+                if (relatedSlots != null) {
+                    for (StackPane relatedSlot : relatedSlots) {
+                        ScaleTransition st = new ScaleTransition(Duration.millis(200), relatedSlot);
+                        st.setToX(1.0);
+                        st.setToY(1.0);
+                        st.play();
+                        String originalStyle = slotOriginalStyles.get(relatedSlot);
+                        if (originalStyle != null) {
+                            relatedSlot.setStyle(originalStyle);
+                        }
+                    }
+                }
             });
         } else {
             // Available slot
@@ -411,6 +465,11 @@ public class BookingsController {
         bookingInfoPane.getChildren().add(placeholderLabel);
     }
 
+    // Dynamic Labels for Live Updates
+    private Label lblTotalAmount;
+    private Label lblBalance;
+    private Label lblStatusBadge;
+
     private void displayPricingBreakdown(Booking booking) {
         pricingPane.getChildren().clear();
 
@@ -430,11 +489,10 @@ public class BookingsController {
             javafx.scene.control.Separator separator1 = new javafx.scene.control.Separator();
             separator1.setStyle("-fx-background-color: rgba(255, 255, 255, 0.1);");
 
-            // Court rental breakdown
-            Label courtLabel = new Label("Court Rental");
-            courtLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: white;");
+            pricingContent.getChildren().addAll(
+                    titleLabel, subtitleLabel, separator1);
 
-            // Calculate hours safely
+            // Get currency and calculate extras for later use
             if (booking.getStartTime() == null || booking.getEndTime() == null) {
                 pricingContent.getChildren().add(new Label("Error: Invalid booking times"));
                 pricingPane.getChildren().add(pricingContent);
@@ -443,64 +501,26 @@ public class BookingsController {
 
             String currency = ConfigManager.getConfig().getCurrencySymbol();
             if (currency == null)
-                currency = "₹"; // Fallback safety
+                currency = "₹";
 
-            double hours = java.time.Duration.between(booking.getStartTime(), booking.getEndTime()).toMinutes() / 60.0;
-            double hourlyRate = hours > 0 ? booking.getTotalAmount() / hours : 0; // Note: this calculation assumes
-                                                                                  // total is just court. Needs
-                                                                                  // refinement if total includes other
-                                                                                  // things.
-            // Better: Court Cost = Total - Paid? No. Court Cost needs to be stored or
-            // calculated from Court Rate.
-            // For now, let's assume Booking Total is initially just Court Cost.
-            // Ideally we separate court cost from add-ons.
+            double durationMinutes = java.time.Duration.between(booking.getStartTime(), booking.getEndTime())
+                    .toMinutes();
+            double durationHours = durationMinutes / 60.0;
+
+            // Calculate Base Court Cost (Total - Extras)
+            double currentTotal = booking.getTotalAmount();
+            double extrasTotal = calculateCafeTotal(booking);
+            double courtCost = currentTotal - extrasTotal;
+
+            // Court rental breakdown
+            Label courtLabel = new Label("Court Rental");
+            courtLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: white;");
 
             javafx.scene.layout.HBox courtLineItem = createPricingLineItem(
-                    String.format("%.1f hour(s) × %s%.2f", hours, currency, hourlyRate),
-                    String.format("%s%.2f", currency, booking.getTotalAmount())); // This needs to be just court cost if
-                                                                                  // we add rentals!
+                    String.format("%.1f hour(s)", durationHours),
+                    String.format("%s%.2f", currency, courtCost));
 
-            // Total section
-            javafx.scene.control.Separator separator2 = new javafx.scene.control.Separator();
-            separator2.setStyle("-fx-background-color: rgba(255, 255, 255, 0.1);");
-
-            javafx.scene.layout.HBox totalLine = createPricingLineItem("Total Amount",
-                    String.format("%s%.2f", currency, booking.getTotalAmount()));
-            totalLine.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
-
-            javafx.scene.layout.HBox paidLine = createPricingLineItem("Paid",
-                    String.format("%s%.2f", currency, booking.getPaidAmount()));
-            paidLine.setStyle("-fx-font-size: 14px;");
-
-            double balance = booking.getTotalAmount() - booking.getPaidAmount();
-            javafx.scene.layout.HBox balanceLine = createPricingLineItem("Balance Due",
-                    String.format("%s%.2f", currency, balance));
-
-            // Color code balance
-            String balanceColor = balance > 0.01 ? "#EF4444" : "#22C55E"; // Red if unpaid, Green if paid
-            balanceLine.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
-            if (balanceLine.getChildren().size() > 1) { // Check before casting
-                // HBox has Label, spacer (Region), value (Label) -> get(2)
-                javafx.scene.Node valueNode = balanceLine.getChildren().get(2);
-                if (valueNode instanceof Label) {
-                    ((Label) valueNode).setStyle(
-                            "-fx-text-fill: " + balanceColor + "; -fx-font-size: 18px; -fx-font-weight: bold;");
-                }
-            }
-
-            // Payment status badge
-            Label statusBadge = new Label(
-                    balance > 0.01 ? (booking.getPaidAmount() > 0 ? "PARTIALLY PAID" : "UNPAID") : "PAID IN FULL");
-            String badgeColor = balance > 0.01 ? (booking.getPaidAmount() > 0 ? "#F59E0B" : "#EF4444") : "#22C55E";
-            statusBadge.setStyle(String.format(
-                    "-fx-background-color: %s; -fx-text-fill: white; " +
-                            "-fx-padding: 8 16; -fx-background-radius: 8; " +
-                            "-fx-font-size: 12px; -fx-font-weight: bold;",
-                    badgeColor));
-
-            pricingContent.getChildren().addAll(
-                    titleLabel, subtitleLabel, separator1,
-                    courtLabel, courtLineItem);
+            pricingContent.getChildren().addAll(courtLabel, courtLineItem);
 
             // RENTALS SECTION
             if (ConfigManager.getConfig().isHasRentals() && ConfigManager.getConfig().getRentalOptions() != null) {
@@ -512,65 +532,179 @@ public class BookingsController {
 
                 pricingContent.getChildren().addAll(sepRental, rentalLabel);
 
+                // Parse existing items for pre-population
+                JSONObject existingItems = new JSONObject();
+                String itemsJson = booking.getCafeItems();
+                if (itemsJson != null && !itemsJson.isEmpty()) {
+                    try {
+                        JSONObject json = new JSONObject(itemsJson);
+                        JSONArray arr = json.optJSONArray("items");
+                        if (arr != null) {
+                            for (int i = 0; i < arr.length(); i++) {
+                                JSONObject obj = arr.getJSONObject(i);
+                                existingItems.put(obj.getString("name"), obj);
+                            }
+                        }
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+                }
+
                 for (com.managepickle.model.RentalOption option : ConfigManager.getConfig().getRentalOptions()) {
                     HBox row = new HBox(10);
                     row.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
 
                     Label name = new Label(option.getName());
-                    name.setStyle("-fx-text-fill: #CBD5E1; -fx-min-width: 100;");
-
-                    // Display Price
-                    String rentalCurrency = ConfigManager.getConfig().getCurrencySymbol();
-                    if (rentalCurrency == null)
-                        rentalCurrency = "₹";
-                    String priceStr = String.format("%s%.2f", rentalCurrency, option.getPrice());
-                    Label priceDisplay = new Label(priceStr
-                            + (option.getType() == com.managepickle.model.RentalOption.RentalType.HOURLY ? "/hr" : ""));
-                    priceDisplay.setStyle("-fx-text-fill: #10B981; -fx-font-size: 11px;");
+                    name.setStyle("-fx-text-fill: #CBD5E1; -fx-min-width: 120;");
+                    // REMOVED: Price Text Label as requested
 
                     Region spacer = new Region();
                     HBox.setHgrow(spacer, Priority.ALWAYS);
 
                     // Logic inputs
-                    Button addBtn = new Button("Add");
-                    addBtn.setStyle(
-                            "-fx-font-size: 10px; -fx-padding: 3 8; -fx-background-color: #7C3AED; -fx-text-fill: white;");
+                    // Determine existing values
+                    int startQty = 0;
+                    int startHrs = (int) Math.ceil(durationHours);
+
+                    if (existingItems.has(option.getName())) {
+                        JSONObject existing = existingItems.getJSONObject(option.getName());
+                        startQty = existing.optInt("qty", 0);
+                        // If it's hourly, try to get hrs, else default to duration
+                        // Note: Previous logic didn't explicitly store 'hours' separately in JSON other
+                        // than inside name string?
+                        // Let's look at `addCafeItem`: "name + (qty x hrs)".
+                        // Ah, we need a better storage structure if we want to reverse it perfectly.
+                        // BUT for this refactor, let's just use the 'qty' and default 'hrs' to duration
+                        // unless we can parse it. Since we are refactoring, let's stick to:
+                        // Default Hrs = Duration. Qty = 0 (or existing value).
+                    }
 
                     if (option.getType() == com.managepickle.model.RentalOption.RentalType.HOURLY) {
-                        javafx.scene.control.Spinner<Integer> qtySpin = new javafx.scene.control.Spinner<>(1, 10, 1);
-                        qtySpin.setPrefWidth(60);
-                        javafx.scene.control.Spinner<Integer> hrSpin = new javafx.scene.control.Spinner<>(1, 4, 1);
-                        hrSpin.setPrefWidth(60);
+                        // Default Hrs should match booking duration
+                        final int durationHrsInt = (startHrs < 1) ? 1 : startHrs;
 
-                        addBtn.setOnAction(e -> {
-                            double total = option.getPrice() * qtySpin.getValue() * hrSpin.getValue();
-                            String itemName = option.getName() + " (" + qtySpin.getValue() + "x for "
-                                    + hrSpin.getValue() + "h)";
-                            addCafeItem(booking, itemName, total, 1); // Qty 1 because total deals with the math
-                        });
+                        javafx.scene.control.Spinner<Integer> qtySpin = new javafx.scene.control.Spinner<>(0, 50,
+                                startQty);
+                        qtySpin.setPrefWidth(90);
 
-                        row.getChildren().addAll(name, priceDisplay, spacer, new Label("Qty:"), qtySpin,
-                                new Label("Hrs:"), hrSpin, addBtn);
+                        javafx.scene.control.Spinner<Integer> hrSpin = new javafx.scene.control.Spinner<>(1, 24,
+                                durationHrsInt);
+                        hrSpin.setPrefWidth(90);
+
+                        // Listeners for Live Update
+                        qtySpin.valueProperty().addListener(
+                                (o, oldVal, newVal) -> handleRentalChange(booking, option, newVal, hrSpin.getValue()));
+
+                        hrSpin.valueProperty().addListener(
+                                (o, oldVal, newVal) -> handleRentalChange(booking, option, qtySpin.getValue(), newVal));
+
+                        row.getChildren().addAll(name, spacer, new Label("Qty:"), qtySpin, new Label("Hrs:"), hrSpin);
                     } else {
-                        // Flat
-                        javafx.scene.control.Spinner<Integer> qtySpin = new javafx.scene.control.Spinner<>(1, 10, 1);
-                        qtySpin.setPrefWidth(60);
+                        // Flat Rate
+                        javafx.scene.control.Spinner<Integer> qtySpin = new javafx.scene.control.Spinner<>(0, 50,
+                                startQty);
+                        qtySpin.setPrefWidth(90);
 
-                        addBtn.setOnAction(e -> {
-                            addCafeItem(booking, option.getName(), option.getPrice(), qtySpin.getValue());
-                        });
+                        qtySpin.valueProperty()
+                                .addListener((o, oldVal, newVal) -> handleRentalChange(booking, option, newVal, 1));
 
-                        row.getChildren().addAll(name, priceDisplay, spacer, new Label("Qty:"), qtySpin, addBtn);
+                        row.getChildren().addAll(name, spacer, new Label("Qty:"), qtySpin);
                     }
                     pricingContent.getChildren().add(row);
                 }
             }
 
+            // EXTRA ITEMS BREAKDOWN (Itemized list of rentals and cafe items)
+            String itemsJson = booking.getCafeItems();
+            if (itemsJson != null && !itemsJson.isEmpty()) {
+                try {
+                    JSONArray itemsArray;
+                    if (itemsJson.trim().startsWith("[")) {
+                        itemsArray = new JSONArray(itemsJson);
+                    } else {
+                        JSONObject root = new JSONObject(itemsJson);
+                        itemsArray = root.optJSONArray("items");
+                    }
+
+                    if (itemsArray != null && itemsArray.length() > 0) {
+                        javafx.scene.control.Separator sepExtras = new javafx.scene.control.Separator();
+                        sepExtras.setStyle("-fx-background-color: rgba(255, 255, 255, 0.1);");
+
+                        Label extrasLabel = new Label("Extra Items");
+                        extrasLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: white;");
+
+                        pricingContent.getChildren().addAll(sepExtras, extrasLabel);
+
+                        // List each item with its cost
+                        for (int i = 0; i < itemsArray.length(); i++) {
+                            JSONObject item = itemsArray.getJSONObject(i);
+                            String itemName = item.getString("name");
+                            int qty = item.optInt("qty", 1);
+                            double itemTotal = item.optDouble("total", 0);
+
+                            String displayName = itemName + " × " + qty;
+
+                            javafx.scene.layout.HBox itemLine = createPricingLineItem(
+                                    displayName,
+                                    String.format("%s%.2f", currency, itemTotal));
+                            itemLine.setStyle("-fx-font-size: 13px; -fx-padding: 2 0;");
+                            pricingContent.getChildren().add(itemLine);
+                        }
+
+                        // Show extras subtotal
+                        javafx.scene.layout.HBox extrasSubtotalLine = createPricingLineItem(
+                                "Extras Subtotal",
+                                String.format("%s%.2f", currency, extrasTotal));
+                        extrasSubtotalLine
+                                .setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-padding: 5 0 0 0;");
+                        pricingContent.getChildren().add(extrasSubtotalLine);
+                    }
+                } catch (Exception ex) {
+                    System.err.println("Error parsing extras for display: " + ex.getMessage());
+                }
+            }
+
+            // Total section
+            javafx.scene.control.Separator separator2 = new javafx.scene.control.Separator();
+            separator2.setStyle("-fx-background-color: rgba(255, 255, 255, 0.1);");
+
+            lblTotalAmount = new Label(String.format("%s%.2f", currency, booking.getTotalAmount()));
+            lblTotalAmount.setStyle("-fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold;");
+
+            javafx.scene.layout.HBox totalLine = createPricingLineItem("Total Amount", "");
+            totalLine.getChildren().set(2, lblTotalAmount); // Replace value node
+            totalLine.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
+
+            javafx.scene.layout.HBox paidLine = createPricingLineItem("Paid",
+                    String.format("%s%.2f", currency, booking.getPaidAmount()));
+            paidLine.setStyle("-fx-font-size: 14px;");
+
+            double balance = booking.getTotalAmount() - booking.getPaidAmount();
+
+            lblBalance = new Label(String.format("%s%.2f", currency, balance));
+            String balanceColor = balance > 0.01 ? "#EF4444" : "#22C55E";
+            lblBalance.setStyle("-fx-text-fill: " + balanceColor + "; -fx-font-size: 18px; -fx-font-weight: bold;");
+
+            javafx.scene.layout.HBox balanceLine = createPricingLineItem("Balance Due", "");
+            balanceLine.getChildren().set(2, lblBalance);
+
+            // Payment status badge
+            String statusText = balance > 0.01 ? (booking.getPaidAmount() > 0 ? "PARTIALLY PAID" : "UNPAID")
+                    : "PAID IN FULL";
+            String badgeColor = balance > 0.01 ? (booking.getPaidAmount() > 0 ? "#F59E0B" : "#EF4444") : "#22C55E";
+
+            lblStatusBadge = new Label(statusText);
+            lblStatusBadge.setStyle(String.format(
+                    "-fx-background-color: %s; -fx-text-fill: white; " +
+                            "-fx-padding: 8 16; -fx-background-radius: 8; " +
+                            "-fx-font-size: 12px; -fx-font-weight: bold;",
+                    badgeColor));
+
             pricingContent.getChildren().addAll(
                     separator2,
                     totalLine, paidLine, balanceLine,
                     new javafx.scene.layout.Region(), // Spacer
-                    statusBadge);
+                    lblStatusBadge);
 
             pricingPane.getChildren().add(pricingContent);
 
@@ -618,16 +752,19 @@ public class BookingsController {
             dialogController.setParentController(this);
 
             // Smart Pre-selection Logic
+            Court selectedCourt = null;
+            LocalTime selectedTime = null;
+
             if (courtId != -1 && hour != -1) {
-                Court selectedCourt = CourtDAO.getAllCourts().stream()
+                selectedCourt = CourtDAO.getAllCourts().stream()
                         .filter(c -> c.getId() == courtId)
                         .findFirst()
                         .orElse(null);
 
-                LocalTime selectedTime = LocalTime.of(hour, 0);
-
-                dialogController.setBookingContext(selectedCourt, selectedTime);
+                selectedTime = LocalTime.of(hour, 0);
             }
+
+            dialogController.setBookingContext(selectedCourt, selectedTime, currentDate);
 
             // Load into Booking Info Tab in Side Panel
             bookingInfoPane.getChildren().setAll(formView);
@@ -651,50 +788,77 @@ public class BookingsController {
         cafeContent.setStyle("-fx-padding: 20;");
         cafeContent.setAlignment(javafx.geometry.Pos.TOP_LEFT);
 
-        Label title = new Label("Cafe & Gear");
+        Label title = new Label("Cafe & Refreshments");
         title.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: white;");
 
-        Label subtitle = new Label("Add items to this booking");
+        Label subtitle = new Label("Select items to add");
         subtitle.setStyle("-fx-text-fill: #94A3B8;");
 
         cafeContent.getChildren().addAll(title, subtitle, new javafx.scene.control.Separator());
 
-        // Cafe Items List
         // Cafe Items List from Config
         var config = ConfigManager.getConfig();
         String currency = config.getCurrencySymbol();
         if (currency == null)
-            currency = "₹"; // Fallback safety
+            currency = "₹";
+
+        // Parse existing items for pre-population
+        JSONObject existingItems = new JSONObject();
+        String itemsJson = booking.getCafeItems();
+        if (itemsJson != null && !itemsJson.isEmpty()) {
+            try {
+                JSONObject root;
+                if (itemsJson.trim().startsWith("[")) {
+                    // Backward compatibility for array root
+                    JSONArray arr = new JSONArray(itemsJson);
+                    for (int i = 0; i < arr.length(); i++) {
+                        JSONObject obj = arr.getJSONObject(i);
+                        existingItems.put(obj.getString("name"), obj);
+                    }
+                } else {
+                    root = new JSONObject(itemsJson);
+                    JSONArray arr = root.optJSONArray("items");
+                    if (arr != null) {
+                        for (int i = 0; i < arr.length(); i++) {
+                            JSONObject obj = arr.getJSONObject(i);
+                            existingItems.put(obj.getString("name"), obj);
+                        }
+                    }
+                }
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        }
 
         List<com.managepickle.model.CafeMenuItem> menu = config.getCafeMenu();
         if (menu != null) {
             for (com.managepickle.model.CafeMenuItem item : menu) {
                 String name = item.getName();
-                double price = item.getPrice();
 
                 HBox itemRow = new HBox(15);
                 itemRow.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
                 itemRow.setStyle(
                         "-fx-background-color: rgba(255,255,255,0.05); -fx-padding: 10; -fx-background-radius: 8;");
 
-                VBox info = new VBox(2);
                 Label nameLabel = new Label(name);
-                nameLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
-                Label priceLabel = new Label(String.format("%s%.2f", currency, price));
-                priceLabel.setStyle("-fx-text-fill: #10B981;");
-                info.getChildren().addAll(nameLabel, priceLabel);
+                nameLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-min-width: 120;");
+
+                // Determine existing quantity
+                int startQty = 0;
+                if (existingItems.has(name)) {
+                    startQty = existingItems.getJSONObject(name).optInt("qty", 0);
+                }
 
                 Region spacer = new Region();
                 HBox.setHgrow(spacer, Priority.ALWAYS);
 
-                javafx.scene.control.Spinner<Integer> qtySpinner = new javafx.scene.control.Spinner<>(1, 10, 1);
-                qtySpinner.setPrefWidth(70);
+                javafx.scene.control.Spinner<Integer> qtySpinner = new javafx.scene.control.Spinner<>(0, 50, startQty);
+                qtySpinner.setPrefWidth(90);
 
-                Button addButton = new Button("Add");
-                addButton.getStyleClass().add("button-primary");
-                addButton.setOnAction(e -> addCafeItem(booking, name, price, qtySpinner.getValue()));
+                // Live Listener
+                qtySpinner.valueProperty().addListener((o, oldVal, newVal) -> handleCafeChange(booking, item, newVal));
 
-                itemRow.getChildren().addAll(info, spacer, qtySpinner, addButton);
+                itemRow.getChildren().addAll(nameLabel, spacer, new Label("Qty:"), qtySpinner);
                 cafeContent.getChildren().add(itemRow);
             }
         }
@@ -702,38 +866,240 @@ public class BookingsController {
         cafePane.getChildren().add(cafeContent);
     }
 
-    private void addCafeItem(Booking booking, String name, double price, int qty) {
+    private void handleCafeChange(Booking booking, com.managepickle.model.CafeMenuItem item, int newQty) {
         try {
-            String currentItems = booking.getCafeItems();
+            double oldExtras = calculateCafeTotal(booking);
+            double oldTotal = booking.getTotalAmount();
+            double courtCost = oldTotal - oldExtras;
+            if (courtCost < 0)
+                courtCost = 0;
+
+            JSONObject root;
             JSONArray itemsArray;
+            String currentItems = booking.getCafeItems();
+
+            // Robust parsing
             if (currentItems == null || currentItems.isEmpty()) {
+                root = new JSONObject();
                 itemsArray = new JSONArray();
-            } else {
+                root.put("items", itemsArray);
+            } else if (currentItems.trim().startsWith("[")) {
                 itemsArray = new JSONArray(currentItems);
+                root = new JSONObject();
+                root.put("items", itemsArray);
+            } else {
+                try {
+                    root = new JSONObject(currentItems);
+                    itemsArray = root.optJSONArray("items");
+                    if (itemsArray == null) {
+                        itemsArray = new JSONArray();
+                        root.put("items", itemsArray);
+                    }
+                } catch (Exception e) {
+                    root = new JSONObject();
+                    itemsArray = new JSONArray();
+                    root.put("items", itemsArray);
+                }
             }
 
-            JSONObject newItem = new JSONObject();
-            newItem.put("name", name);
-            newItem.put("price", price);
-            newItem.put("qty", qty);
-            newItem.put("total", price * qty);
-            itemsArray.put(newItem);
+            // Update Logic
+            boolean found = false;
+            JSONArray newArray = new JSONArray();
 
-            // Update booking
-            booking.setCafeItems(itemsArray.toString());
-            // In a real app we should also update totalAmount
-            booking.setTotalAmount(booking.getTotalAmount() + (price * qty));
+            for (int i = 0; i < itemsArray.length(); i++) {
+                JSONObject obj = itemsArray.getJSONObject(i);
+                if (obj.getString("name").equals(item.getName())) {
+                    found = true;
+                    if (newQty > 0) {
+                        obj.put("qty", newQty);
+                        obj.put("total", item.getPrice() * newQty);
+                        newArray.put(obj);
+                    }
+                    // if 0, remove
+                } else {
+                    newArray.put(obj);
+                }
+            }
+
+            if (!found && newQty > 0) {
+                JSONObject obj = new JSONObject();
+                obj.put("name", item.getName());
+                obj.put("price", item.getPrice());
+                obj.put("qty", newQty);
+                obj.put("total", item.getPrice() * newQty);
+                newArray.put(obj);
+            }
+
+            root.put("items", newArray);
+            booking.setCafeItems(root.toString());
+
+            double newExtras = calculateCafeTotal(booking);
+            double newTotal = courtCost + newExtras;
+            booking.setTotalAmount(newTotal);
 
             BookingDAO.updateBooking(booking);
 
-            // Refresh panels
-            displayPricingBreakdown(booking);
+            // Live UI Updates
+            String currency = ConfigManager.getConfig().getCurrencySymbol();
+            if (currency == null)
+                currency = "₹";
+
+            if (lblTotalAmount != null)
+                lblTotalAmount.setText(String.format("%s%.2f", currency, newTotal));
+
+            double paid = booking.getPaidAmount();
+            double balance = newTotal - paid;
+
+            if (lblBalance != null) {
+                lblBalance.setText(String.format("%s%.2f", currency, balance));
+                String balanceColor = balance > 0.01 ? "#EF4444" : "#22C55E";
+                lblBalance.setStyle("-fx-text-fill: " + balanceColor + "; -fx-font-size: 18px; -fx-font-weight: bold;");
+            }
+
+            if (lblStatusBadge != null) {
+                String statusText = balance > 0.01 ? (paid > 0 ? "PARTIALLY PAID" : "UNPAID") : "PAID IN FULL";
+                String badgeColor = balance > 0.01 ? (paid > 0 ? "#F59E0B" : "#EF4444") : "#22C55E";
+                lblStatusBadge.setText(statusText);
+                lblStatusBadge.setStyle(String.format(
+                        "-fx-background-color: %s; -fx-text-fill: white; " +
+                                "-fx-padding: 8 16; -fx-background-radius: 8; " +
+                                "-fx-font-size: 12px; -fx-font-weight: bold;",
+                        badgeColor));
+            }
+
             displayReceipt(booking);
 
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
+
+    private void handleRentalChange(Booking booking, com.managepickle.model.RentalOption option, int newQty,
+            int newHrs) {
+        try {
+            double oldExtras = calculateCafeTotal(booking);
+            double oldTotal = booking.getTotalAmount();
+            double courtCost = oldTotal - oldExtras;
+            if (courtCost < 0)
+                courtCost = 0;
+
+            JSONObject root;
+            JSONArray itemsArray;
+            String currentItems = booking.getCafeItems();
+
+            // Robust parsing
+            if (currentItems == null || currentItems.isEmpty()) {
+                root = new JSONObject();
+                itemsArray = new JSONArray();
+                root.put("items", itemsArray);
+            } else if (currentItems.trim().startsWith("[")) {
+                itemsArray = new JSONArray(currentItems);
+                root = new JSONObject();
+                root.put("items", itemsArray);
+            } else {
+                try {
+                    root = new JSONObject(currentItems);
+                    itemsArray = root.optJSONArray("items");
+                    if (itemsArray == null) {
+                        itemsArray = new JSONArray();
+                        root.put("items", itemsArray);
+                    }
+                } catch (Exception e) {
+                    // Fallback
+                    root = new JSONObject();
+                    itemsArray = new JSONArray();
+                    root.put("items", itemsArray);
+                }
+            }
+
+            // Update Logic
+            boolean found = false;
+            JSONArray newArray = new JSONArray();
+
+            for (int i = 0; i < itemsArray.length(); i++) {
+                JSONObject obj = itemsArray.getJSONObject(i);
+                if (obj.getString("name").equals(option.getName())) {
+                    found = true;
+                    if (newQty > 0) {
+                        // Update
+                        obj.put("qty", newQty);
+                        obj.put("hrs", newHrs); // Store hrs
+                        double total = 0;
+                        if (option.getType() == com.managepickle.model.RentalOption.RentalType.HOURLY) {
+                            total = option.getPrice() * newQty * newHrs;
+                        } else {
+                            total = option.getPrice() * newQty;
+                        }
+                        obj.put("total", total);
+                        newArray.put(obj);
+                    }
+                    // If newQty == 0, exclude (delete)
+                } else {
+                    newArray.put(obj);
+                }
+            }
+
+            if (!found && newQty > 0) {
+                JSONObject obj = new JSONObject();
+                obj.put("name", option.getName());
+                obj.put("price", option.getPrice());
+                obj.put("qty", newQty);
+                obj.put("hrs", newHrs);
+                double total = 0;
+                if (option.getType() == com.managepickle.model.RentalOption.RentalType.HOURLY) {
+                    total = option.getPrice() * newQty * newHrs;
+                } else {
+                    total = option.getPrice() * newQty;
+                }
+                obj.put("total", total);
+                newArray.put(obj);
+            }
+
+            root.put("items", newArray);
+            booking.setCafeItems(root.toString());
+
+            double newExtras = calculateCafeTotal(booking);
+            double newTotal = courtCost + newExtras;
+            booking.setTotalAmount(newTotal);
+
+            BookingDAO.updateBooking(booking);
+
+            // Live UI Updates
+            String currency = ConfigManager.getConfig().getCurrencySymbol();
+            if (currency == null)
+                currency = "₹";
+
+            if (lblTotalAmount != null)
+                lblTotalAmount.setText(String.format("%s%.2f", currency, newTotal));
+
+            double paid = booking.getPaidAmount();
+            double balance = newTotal - paid;
+
+            if (lblBalance != null) {
+                lblBalance.setText(String.format("%s%.2f", currency, balance));
+                String balanceColor = balance > 0.01 ? "#EF4444" : "#22C55E"; // Red/Green
+                lblBalance.setStyle("-fx-text-fill: " + balanceColor + "; -fx-font-size: 18px; -fx-font-weight: bold;");
+            }
+
+            if (lblStatusBadge != null) {
+                String statusText = balance > 0.01 ? (paid > 0 ? "PARTIALLY PAID" : "UNPAID") : "PAID IN FULL";
+                String badgeColor = balance > 0.01 ? (paid > 0 ? "#F59E0B" : "#EF4444") : "#22C55E";
+                lblStatusBadge.setText(statusText);
+                lblStatusBadge.setStyle(String.format(
+                        "-fx-background-color: %s; -fx-text-fill: white; " +
+                                "-fx-padding: 8 16; -fx-background-radius: 8; " +
+                                "-fx-font-size: 12px; -fx-font-weight: bold;",
+                        badgeColor));
+            }
+
+            displayReceipt(booking);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    // addCafeItem removed as it is replaced by handleCafeChange
 
     private void displayReceipt(Booking booking) {
         receiptPane.getChildren().clear();
@@ -760,29 +1126,39 @@ public class BookingsController {
         itemsBox.setAlignment(javafx.geometry.Pos.TOP_LEFT);
 
         // Court Item
-        HBox courtItem = new HBox();
+        HBox courtItem = new HBox(); // Fix HBox usage if needed, but imports are generic
         courtItem.getChildren().addAll(
                 new Label("Court Rental"),
                 new Region(),
                 new Label(String.format("$%.2f", booking.getTotalAmount() - calculateCafeTotal(booking))));
-        ((Region) courtItem.getChildren().get(1)).setPrefWidth(150); // Spacer logic simplified
-        HBox.setHgrow(courtItem.getChildren().get(1), Priority.ALWAYS);
+        Region spacer1 = (Region) courtItem.getChildren().get(1);
+        spacer1.setPrefWidth(100);
+        HBox.setHgrow(spacer1, Priority.ALWAYS);
         itemsBox.getChildren().add(courtItem);
 
         // Cafe Items
         try {
             String currentItems = booking.getCafeItems();
             if (currentItems != null && !currentItems.isEmpty()) {
-                JSONArray itemsArray = new JSONArray(currentItems);
-                for (int i = 0; i < itemsArray.length(); i++) {
-                    JSONObject item = itemsArray.getJSONObject(i);
-                    HBox row = new HBox();
-                    Label name = new Label(item.getString("name") + " x" + item.getInt("qty"));
-                    Region space = new Region();
-                    HBox.setHgrow(space, Priority.ALWAYS);
-                    Label price = new Label(String.format("$%.2f", item.getDouble("total")));
-                    row.getChildren().addAll(name, space, price);
-                    itemsBox.getChildren().add(row);
+                JSONArray itemsArray;
+                if (currentItems.trim().startsWith("[")) {
+                    itemsArray = new JSONArray(currentItems);
+                } else {
+                    JSONObject r = new JSONObject(currentItems);
+                    itemsArray = r.optJSONArray("items");
+                }
+
+                if (itemsArray != null) {
+                    for (int i = 0; i < itemsArray.length(); i++) {
+                        JSONObject item = itemsArray.getJSONObject(i);
+                        HBox row = new HBox();
+                        Label name = new Label(item.getString("name") + " x" + item.getInt("qty"));
+                        Region space = new Region();
+                        HBox.setHgrow(space, Priority.ALWAYS);
+                        Label price = new Label(String.format("$%.2f", item.getDouble("total")));
+                        row.getChildren().addAll(name, space, price);
+                        itemsBox.getChildren().add(row);
+                    }
                 }
             }
         } catch (Exception e) {
@@ -811,9 +1187,18 @@ public class BookingsController {
         try {
             String currentItems = booking.getCafeItems();
             if (currentItems != null && !currentItems.isEmpty()) {
-                JSONArray itemsArray = new JSONArray(currentItems);
-                for (int i = 0; i < itemsArray.length(); i++) {
-                    total += itemsArray.getJSONObject(i).getDouble("total");
+                JSONArray itemsArray;
+                if (currentItems.trim().startsWith("[")) {
+                    itemsArray = new JSONArray(currentItems);
+                } else {
+                    JSONObject r = new JSONObject(currentItems);
+                    itemsArray = r.optJSONArray("items");
+                }
+
+                if (itemsArray != null) {
+                    for (int i = 0; i < itemsArray.length(); i++) {
+                        total += itemsArray.getJSONObject(i).getDouble("total");
+                    }
                 }
             }
         } catch (Exception e) {

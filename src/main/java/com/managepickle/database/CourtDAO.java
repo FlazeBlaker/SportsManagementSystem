@@ -25,7 +25,7 @@ public class CourtDAO {
     }
 
     public static int createCourt(Court court) {
-        String sql = "INSERT INTO courts(name, type, icon_code, environment_type, hourly_rate) VALUES(?,?,?,?,?)";
+        String sql = "INSERT INTO courts(name, type, icon_code, environment_type, hourly_rate, use_global_rates) VALUES(?,?,?,?,?,?)";
         try (Connection conn = DatabaseManager.connect();
                 PreparedStatement pstmt = conn.prepareStatement(sql, java.sql.Statement.RETURN_GENERATED_KEYS)) {
             pstmt.setString(1, court.getName());
@@ -33,6 +33,7 @@ public class CourtDAO {
             pstmt.setString(3, court.getIconCode());
             pstmt.setString(4, court.getEnvironmentType());
             pstmt.setDouble(5, court.getHourlyRate());
+            pstmt.setInt(6, court.isUseGlobalRates() ? 1 : 0);
             pstmt.executeUpdate();
 
             try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
@@ -47,7 +48,7 @@ public class CourtDAO {
     }
 
     public static void updateCourt(Court court) {
-        String sql = "UPDATE courts SET name = ?, type = ?, icon_code = ?, environment_type = ?, hourly_rate = ? WHERE id = ?";
+        String sql = "UPDATE courts SET name = ?, type = ?, icon_code = ?, environment_type = ?, hourly_rate = ?, use_global_rates = ? WHERE id = ?";
         try (Connection conn = DatabaseManager.connect();
                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, court.getName());
@@ -55,7 +56,8 @@ public class CourtDAO {
             pstmt.setString(3, court.getIconCode());
             pstmt.setString(4, court.getEnvironmentType());
             pstmt.setDouble(5, court.getHourlyRate());
-            pstmt.setInt(6, court.getId());
+            pstmt.setInt(6, court.isUseGlobalRates() ? 1 : 0);
+            pstmt.setInt(7, court.getId());
             pstmt.executeUpdate();
         } catch (SQLException e) {
             logger.error("Error updating court", e);
@@ -88,7 +90,9 @@ public class CourtDAO {
                         .type(rs.getString("type"))
                         .iconCode(rs.getString("icon_code"))
                         .environmentType(rs.getString("environment_type"))
+                        .environmentType(rs.getString("environment_type"))
                         .hourlyRate(rs.getDouble("hourly_rate"))
+                        .useGlobalRates(rs.getInt("use_global_rates") == 1) // 1 = true
                         .build();
                 courts.add(c);
             }

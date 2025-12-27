@@ -11,9 +11,6 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
-import javafx.geometry.Pos;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -40,8 +37,8 @@ public class BookingDialogController {
     private TextField customerNameField;
     @FXML
     private TextField customerPhoneField;
-    @FXML
-    private DatePicker datePicker;
+    // Logic-only DatePicker (Hidden from UI)
+    private DatePicker datePicker = new DatePicker();
     @FXML
     private ComboBox<String> startTimeComboBox;
     @FXML
@@ -61,25 +58,11 @@ public class BookingDialogController {
     @FXML
     private Label courtCostLabel;
     @FXML
-    private VBox cafeSection;
-    @FXML
-    private VBox cafeItemsContainer;
-    @FXML
-    private VBox rentalSection;
-    @FXML
-    private HBox rentalSelectorContainer;
-    @FXML
-    private VBox selectedRentalsContainer;
-    @FXML
     private Button deleteButton;
     @FXML
     private Button saveButton;
 
     private double courtCostTotal = 0.0;
-    private double extrasTotal = 0.0;
-    private java.util.Map<String, Integer> cafeSelection = new java.util.HashMap<>();
-    private java.util.List<com.managepickle.model.RentalOption> selectedRentals = new java.util.ArrayList<>();
-
     private BookingsController parentController;
 
     @FXML
@@ -99,7 +82,12 @@ public class BookingDialogController {
         courtComboBox.setConverter(new StringConverter<Court>() {
             @Override
             public String toString(Court court) {
-                return court == null ? "" : court.getName() + " (" + court.getType() + ")";
+                if (court == null)
+                    return "";
+                String type = court.getEnvironmentType();
+                if (type == null)
+                    type = court.getType();
+                return court.getName() + (type != null && !type.isEmpty() ? " (" + type + ")" : "");
             }
 
             @Override
@@ -108,143 +96,47 @@ public class BookingDialogController {
             }
         });
 
-        // Load Time Slots
-        for (int i = 6; i <= 22; i++) {
-            String time = String.format("%02d:00", i);
-            startTimeComboBox.getItems().add(time);
-            endTimeComboBox.getItems().add(time);
-        }
+        refreshTimeSlots();
+
+        // Add Listeners for Price Calculation
+        datePicker.setOnAction(e -> {
+            refreshTimeSlots();
+            calculatePrice();
+        });
 
         // Add Listeners for Price Calculation
         courtComboBox.setOnAction(e -> calculatePrice());
         startTimeComboBox.setOnAction(e -> calculatePrice());
         endTimeComboBox.setOnAction(e -> calculatePrice());
 
-        setupExtrasUI();
     }
 
-    private void setupExtrasUI() {
-        com.managepickle.model.AppConfig config = com.managepickle.utils.ConfigManager.getConfig();
-        String symbol = config.getCurrencySymbol() != null ? config.getCurrencySymbol() : "₹";
+    private void refreshTimeSlots() {
+        startTimeComboBox.getItems().clear();
+        endTimeComboBox.getItems().clear();
 
-        // Hide sections if disabled
-        cafeSection.setVisible(config.isHasCafe());
-        cafeSection.setManaged(config.isHasCafe());
-        rentalSection.setVisible(config.isHasRentals());
-        rentalSection.setManaged(config.isHasRentals());
+        LocalDate date = datePicker.getValue() != null ? datePicker.getValue() : LocalDate.now();
+        com.managepickle.model.OperatingHours hours = com.managepickle.service.PricingService.getOperatingHours(date);
 
-        // 1. Setup Cafe Items (Counter UI)
-        if (config.getCafeMenu() != null) {
-            for (com.managepickle.model.CafeMenuItem item : config.getCafeMenu()) {
-                HBox row = new HBox(15);
-                row.setAlignment(Pos.CENTER_LEFT);
-
-                Label name = new Label(item.getName() + " (" + symbol + item.getPrice() + ")");
-                name.setStyle("-fx-text-fill: white; -fx-font-size: 13px;");
-                HBox.setHgrow(name, javafx.scene.layout.Priority.ALWAYS);
-
-                HBox counter = new HBox(10);
-                counter.setAlignment(Pos.CENTER);
-
-                Button minus = new Button("-");
-                minus.setStyle(
-                        "-fx-background-color: rgba(255,255,255,0.1); -fx-text-fill: white; -fx-background-radius: 4;");
-
-                Label qtyLabel = new Label("0");
-                qtyLabel.setStyle(
-                        "-fx-text-fill: white; -fx-font-weight: bold; -fx-min-width: 20; -fx-alignment: center;");
-
-                Button plus = new Button("+");
-                plus.setStyle(
-                        "-fx-background-color: rgba(167, 139, 250, 0.4); -fx-text-fill: white; -fx-background-radius: 4;");
-
-                minus.setOnAction(e -> {
-                    int qty = cafeSelection.getOrDefault(item.getName(), 0);
-                    if (qty > 0) {
-                        qty--;
-                        cafeSelection.put(item.getName(), qty);
-                        qtyLabel.setText(String.valueOf(qty));
-                        calculatePrice();
-                    }
-                });
-
-                plus.setOnAction(e -> {
-                    int qty = cafeSelection.getOrDefault(item.getName(), 0);
-                    qty++;
-                    cafeSelection.put(item.getName(), qty);
-                    qtyLabel.setText(String.valueOf(qty));
-                    calculatePrice();
-                });
-
-                counter.getChildren().addAll(minus, qtyLabel, plus);
-                row.getChildren().addAll(name, counter);
-                cafeItemsContainer.getChildren().add(row);
-            }
+        if (hours.isClosed()) {
+            startTimeComboBox.setPromptText("CLOSED");
+            endTimeComboBox.setPromptText("CLOSED");
+            return;
         }
 
-        // 2. Setup Rental Gear (Selector UI)
-        if (config.getRentalOptions() != null) {
-            ComboBox<com.managepickle.model.RentalOption> gearCombo = new ComboBox<>();
-            gearCombo.setItems(FXCollections.observableArrayList(config.getRentalOptions()));
-            gearCombo.setPromptText("Select Gear...");
-            gearCombo.setPrefWidth(200);
+        startTimeComboBox.setPromptText("Start Time");
+        endTimeComboBox.setPromptText("End Time");
 
-            gearCombo.setConverter(new StringConverter<>() {
-                @Override
-                public String toString(com.managepickle.model.RentalOption r) {
-                    return r == null ? "" : r.getName() + " (" + symbol + r.getPrice() + ")";
-                }
-
-                @Override
-                public com.managepickle.model.RentalOption fromString(String s) {
-                    return null;
-                }
-            });
-
-            Button addGearBtn = new Button("Add");
-            addGearBtn.setStyle("-fx-background-color: #A78BFA; -fx-text-fill: white; -fx-background-radius: 4;");
-
-            addGearBtn.setOnAction(e -> {
-                com.managepickle.model.RentalOption selected = gearCombo.getValue();
-                if (selected != null) {
-                    selectedRentals.add(selected);
-                    renderSelectedGear();
-                    calculatePrice();
-                }
-            });
-
-            rentalSelectorContainer.getChildren().addAll(gearCombo, addGearBtn);
+        for (int i = hours.getStartHour(); i <= hours.getEndHour(); i++) {
+            String time = String.format("%02d:00", i);
+            startTimeComboBox.getItems().add(time);
+            endTimeComboBox.getItems().add(time);
         }
     }
 
-    private void renderSelectedGear() {
-        selectedRentalsContainer.getChildren().clear();
-        String symbol = com.managepickle.utils.ConfigManager.getConfig().getCurrencySymbol();
-        if (symbol == null)
-            symbol = "₹";
+    // Extras UI setup removed
 
-        for (com.managepickle.model.RentalOption gear : selectedRentals) {
-            HBox row = new HBox(10);
-            row.setAlignment(Pos.CENTER_LEFT);
-            row.setStyle("-fx-background-color: rgba(255,255,255,0.05); -fx-padding: 5 10; -fx-background-radius: 6;");
-
-            Label name = new Label(gear.getName() + " - " + symbol + gear.getPrice());
-            name.setStyle("-fx-text-fill: #CBD5E1; -fx-font-size: 12px;");
-            HBox.setHgrow(name, javafx.scene.layout.Priority.ALWAYS);
-
-            Button removeBtn = new Button("×");
-            removeBtn.setStyle(
-                    "-fx-background-color: transparent; -fx-text-fill: #EF4444; -fx-font-weight: bold; -fx-cursor: hand;");
-            removeBtn.setOnAction(e -> {
-                selectedRentals.remove(gear);
-                renderSelectedGear();
-                calculatePrice();
-            });
-
-            row.getChildren().addAll(name, removeBtn);
-            selectedRentalsContainer.getChildren().add(row);
-        }
-    }
+    // Extras UI removed
 
     private void calculatePrice() {
         if (priceLabel == null)
@@ -262,32 +154,22 @@ public class BookingDialogController {
                 LocalDateTime startDT = LocalDateTime.of(date, start);
                 LocalDateTime endDT = LocalDateTime.of(date, end);
 
-                if (end.isAfter(start)) {
+                // Handle Midnight (00:00) as the next day if start is not 00:00
+                if (end.equals(LocalTime.MIN) && !start.equals(LocalTime.MIN)) {
+                    endDT = endDT.plusDays(1);
+                }
+
+                if (endDT.isAfter(startDT)) {
                     courtCostTotal = com.managepickle.service.PricingService.calculateCourtCost(selectedCourt, startDT,
                             endDT);
 
                     // Calculate Extras
-                    extrasTotal = 0;
+                    double grandTotal = courtCostTotal;
                     com.managepickle.model.AppConfig config = com.managepickle.utils.ConfigManager.getConfig();
-
-                    // Cafe extras
-                    if (config.getCafeMenu() != null) {
-                        for (com.managepickle.model.CafeMenuItem item : config.getCafeMenu()) {
-                            int qty = cafeSelection.getOrDefault(item.getName(), 0);
-                            extrasTotal += (item.getPrice() * qty);
-                        }
-                    }
-
-                    // Rental extras
-                    for (com.managepickle.model.RentalOption gear : selectedRentals) {
-                        extrasTotal += gear.getPrice();
-                    }
-
-                    double grandTotal = courtCostTotal + extrasTotal;
                     String symbol = config.getCurrencySymbol() != null ? config.getCurrencySymbol() : "₹";
 
                     courtPriceLabel.setText(String.format("%s%.2f", symbol, courtCostTotal));
-                    extrasPriceLabel.setText(String.format("%s%.2f", symbol, extrasTotal));
+                    extrasPriceLabel.setText("0.00");
                     priceLabel.setText(String.format("%s%.2f", symbol, grandTotal));
                 } else {
                     priceLabel.setText("Invalid Time Range");
@@ -302,7 +184,12 @@ public class BookingDialogController {
         }
     }
 
-    public void setBookingContext(Court court, LocalTime startTime) {
+    public void setBookingContext(Court court, LocalTime startTime, LocalDate date) {
+        if (date != null) {
+            datePicker.setValue(date);
+            refreshTimeSlots(); // Ensure slots are for the correct day
+        }
+
         if (court != null) {
             courtComboBox.setValue(court);
             courtComboBox.setDisable(true); // Lock court
@@ -325,7 +212,7 @@ public class BookingDialogController {
             endTimeComboBox.setValue(formattedEndTime);
 
             // Set date to today (or passed date if we supported that)
-            datePicker.setValue(LocalDate.now());
+            // datePicker.setValue(LocalDate.now()); // REMOVED: Respect the passed date!
         }
 
         calculatePrice();
@@ -432,36 +319,54 @@ public class BookingDialogController {
             }
 
             double amount = com.managepickle.service.PricingService.calculateCourtCost(selectedCourt, start, end);
+            double existingExtrasCost = 0.0;
+            String extrasString = null;
 
-            // Serialize Extras to JSON
-            JSONObject extrasJSON = new JSONObject();
-            JSONArray itemsArray = new JSONArray();
-
-            // Add Cafe Items
-            cafeSelection.forEach((nameStr, qty) -> {
-                if (qty > 0) {
-                    JSONObject item = new JSONObject();
-                    item.put("name", nameStr);
-                    item.put("qty", qty);
-                    item.put("type", "CAFE");
-                    itemsArray.put(item);
+            if (editingBooking != null) {
+                // Preserve existing items
+                extrasString = editingBooking.getCafeItems();
+                // Recalculate existing extras cost from JSON
+                if (extrasString != null && !extrasString.isEmpty()) {
+                    try {
+                        JSONObject json = new JSONObject(extrasString);
+                        JSONArray items = json.optJSONArray("items");
+                        if (items != null) {
+                            for (int i = 0; i < items.length(); i++) {
+                                JSONObject item = items.getJSONObject(i);
+                                double p = item.optDouble("price", 0.0);
+                                int q = item.optInt("qty", 0);
+                                if (item.has("total")) {
+                                    existingExtrasCost += item.getDouble("total");
+                                } else if (p > 0) {
+                                    existingExtrasCost += (p * q); // Fallback
+                                } else {
+                                    // Try to lookup price? For now assume total or 0 if missing.
+                                    // Actually the Cafe Logic saves 'total' field.
+                                    // Rentals usually have 'price' and 'qty' but no 'total' in my previous reading?
+                                    // Let's rely on 'total' if present, else 0.
+                                }
+                            }
+                        }
+                    } catch (Exception e) {
+                        System.err.println("Error parsing existing extras: " + e.getMessage());
+                    }
                 }
-            });
-
-            // Add Rental Gear
-            selectedRentals.forEach(gear -> {
-                JSONObject item = new JSONObject();
-                item.put("name", gear.getName());
-                item.put("qty", 1);
-                item.put("type", "RENTAL");
-                itemsArray.put(item);
-            });
-
-            extrasJSON.put("items", itemsArray);
-            String extrasString = extrasJSON.toString();
+            } else {
+                // New Booking starts with no extras
+                JSONObject empty = new JSONObject();
+                empty.put("items", new JSONArray());
+                extrasString = empty.toString();
+            }
 
             if (editingBooking != null) {
                 // UPDATE EXISTING
+                // Check if the new time slot conflicts with OTHER bookings (excluding this one)
+                if (BookingDAO.isBookingOverlapping(selectedCourt.getId(), start, end, editingBooking.getId())) {
+                    showWarning(
+                            "❌ This time slot conflicts with another booking! The ENTIRE duration must be available.");
+                    return;
+                }
+
                 Booking updated = Booking.builder()
                         .id(editingBooking.getId())
                         .courtId(selectedCourt.getId())
@@ -469,7 +374,7 @@ public class BookingDialogController {
                         .customerPhone(phone)
                         .startTime(start)
                         .endTime(end)
-                        .totalAmount(amount + extrasTotal) // Persist Grand Total
+                        .totalAmount(amount + existingExtrasCost) // Preserve extras cost
                         .cafeItems(extrasString)
                         .status(editingBooking.getStatus())
                         .build();
@@ -489,7 +394,7 @@ public class BookingDialogController {
                         .customerPhone(phone)
                         .startTime(start)
                         .endTime(end)
-                        .totalAmount(amount + extrasTotal) // Persist Grand Total
+                        .totalAmount(amount) // New booking starts with 0 extras
                         .cafeItems(extrasString)
                         .status("CONFIRMED")
                         .build();
