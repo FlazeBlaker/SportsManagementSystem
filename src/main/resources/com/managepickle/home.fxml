@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.geometry.Insets?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.managepickle.controller.HomeController"
+      spacing="30" style="-fx-padding: 30;">
+
+    <Label text="Dashboard" style="-fx-font-size: 42px; -fx-font-weight: bold; -fx-text-fill: white;"/>
+    
+    <HBox spacing="20">
+        <VBox styleClass="card" spacing="10" HBox.hgrow="ALWAYS">
+            <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+            <Label text="Today's Revenue" style="-fx-text-fill: #CBD5E1; -fx-font-size: 14px;"/>
+            <Label fx:id="revenueLabel" text="0.00" 
+                   style="-fx-text-fill: #FFFFFF; -fx-font-size: 36px; -fx-font-weight: bold;"/>
+        </VBox>
+        
+        <VBox styleClass="card" spacing="10" HBox.hgrow="ALWAYS">
+            <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+            <Label text="Total Bookings" style="-fx-text-fill: #CBD5E1; -fx-font-size: 14px;"/>
+            <Label fx:id="bookingsLabel" text="0" 
+                   style="-fx-text-fill: #FFFFFF; -fx-font-size: 36px; -fx-font-weight: bold;"/>
+        </VBox>
+        
+        <VBox styleClass="card" spacing="10" HBox.hgrow="ALWAYS">
+            <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+            <Label fx:id="occupancyTitleLabel" text="Occupancy" style="-fx-text-fill: #CBD5E1; -fx-font-size: 14px;"/>
+            <Label fx:id="occupancyLabel" text="0%" 
+                   style="-fx-text-fill: #FFFFFF; -fx-font-size: 36px; -fx-font-weight: bold;"/>
+        </VBox>
+    </HBox>
+
+</VBox>

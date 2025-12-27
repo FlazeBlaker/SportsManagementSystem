@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
+
+<StackPane xmlns="http://javafx.com/javafx"
+           xmlns:fx="http://javafx.com/fxml"
+           fx:controller="com.managepickle.controller.SetupWizardController"
+           styleClass="setup-root"
+           style="-fx-background-color: transparent;">
+
+    <!-- LAYER 1: Frosty Glass Background -->
+    <Pane fx:id="glassPane" styleClass="glass-background" prefWidth="1100" prefHeight="750" maxWidth="1100" maxHeight="750"/>
+
+    <!-- LAYER 2: Main Content (Transparent) -->
+    <HBox styleClass="setup-container" prefWidth="1100" prefHeight="750" maxWidth="1100" maxHeight="750" minWidth="1100" minHeight="750">
+        
+        <!-- LEFT SIDEBAR: Progress Steps - FIXED WIDTH -->
+        <VBox styleClass="setup-sidebar" prefWidth="320" minWidth="320" maxWidth="320" spacing="0">
+            <!-- Logo/Header -->
+            <VBox styleClass="sidebar-header" spacing="8">
+                <Label text="Setup Wizard" styleClass="sidebar-title"/>
+                <Label text="Let's configure your venue" styleClass="sidebar-subtitle" wrapText="true"/>
+            </VBox>
+            
+            <!-- Steps List with ScrollPane to handle overflow -->
+            <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS" styleClass="steps-scroll">
+                <VBox fx:id="stepsContainer" styleClass="steps-list" spacing="4">
+                    <!-- Steps will be added programmatically -->
+                </VBox>
+            </ScrollPane>
+            
+            <VBox.margin>
+                <Insets top="0" right="0" bottom="0" left="0"/>
+            </VBox.margin>
+        </VBox>
+        
+        <!-- RIGHT CONTENT: Active Step - EXPAND TO FILL -->
+        <VBox styleClass="setup-content" HBox.hgrow="ALWAYS" spacing="20" prefWidth="780">
+            
+            <!-- Header -->
+            <VBox spacing="8" styleClass="content-header">
+                <Label fx:id="titleLabel" text="Welcome" styleClass="content-title"/>
+                <Label fx:id="subtitleLabel" text="Let's get started" styleClass="content-subtitle" wrapText="true"/>
+            </VBox>
+
+            <!-- In-App Notification (Dynamic) -->
+            <Label fx:id="notificationLabel" visible="false" managed="false"
+                   style="-fx-background-color: rgba(239, 68, 68, 0.15); -fx-text-fill: #EF4444; -fx-padding: 10 20; -fx-background-radius: 8; -fx-border-color: rgba(239, 68, 68, 0.3); -fx-border-width: 1; -fx-border-radius: 8; -fx-font-weight: bold; -fx-font-size: 13px;"/>
+            
+            <!-- Dynamic Content Area with ScrollPane -->
+            <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS" styleClass="content-scroll">
+                <StackPane fx:id="contentArea" styleClass="content-area"/>
+            </ScrollPane>
+            
+            <!-- Footer Actions -->
+            <HBox spacing="14" alignment="CENTER_RIGHT" styleClass="content-footer">
+                <Button fx:id="backButton" text="Back" onAction="#onBack" styleClass="button-back"/>
+                <Button fx:id="nextButton" text="Continue" onAction="#onNext" styleClass="button-next"/>
+            </HBox>
+            
+        </VBox>
+        
+    </HBox>
+
+</StackPane>

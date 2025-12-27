@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.SplitPane?>
+<?import javafx.scene.control.TabPane?>
+<?import javafx.scene.control.Tab?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.DatePicker?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.managepickle.controller.BookingsController"
+      spacing="0" style="-fx-padding: 30;">
+
+    <!-- Premium Header with Date Selector -->
+    <HBox alignment="CENTER_LEFT" spacing="20" style="-fx-padding: 0 0 30 0;">
+        
+        <VBox spacing="8">
+            <Label text="Select Date:" style="-fx-font-size: 14px; -fx-text-fill: #94A3B8;"/>
+            <DatePicker fx:id="datePicker" style="-fx-pref-width: 200;"/>
+        </VBox>
+        
+        <VBox HBox.hgrow="ALWAYS"/>
+        
+        <!-- Action Button Removed as per request -->
+    </HBox>
+
+    <!-- Main Content Area: Split View -->
+    <SplitPane dividerPositions="0.5" VBox.vgrow="ALWAYS" style="-fx-background-color: transparent; -fx-padding: 0;">
+        
+        <!-- Left: Booking Grid with Headers -->
+        <VBox spacing="20">
+            <!-- Modern Court Headers with Status Indicators -->
+            <HBox fx:id="courtsHeader" spacing="15" style="-fx-padding: 0 0 0 80;">
+                <!-- Court headers will be added dynamically -->
+            </HBox>
+            
+            <ScrollPane fx:id="scrollPane" fitToWidth="true"
+                        style="-fx-background-color: transparent; -fx-border-color: transparent;">
+                <HBox spacing="0">
+                    <!-- Time Labels Column -->
+                    <VBox fx:id="timeLabels" spacing="0" style="-fx-min-width: 80; -fx-padding: 0 10 0 0;">
+                        <!-- Time labels added dynamically -->
+                    </VBox>
+                    
+                    <!-- Booking Grid -->
+                    <GridPane fx:id="bookingGrid" hgap="15" vgap="0" style="-fx-background-color: transparent;">
+                        <!-- Grid cells added dynamically -->
+                    </GridPane>
+                </HBox>
+            </ScrollPane>
+        </VBox>
+
+        <!-- Right: Side Panel (Tabbed Interface) -->
+        <VBox fx:id="sidePanel" maxWidth="800" minWidth="500" styleClass="card" style="-fx-border-color: rgba(124, 58, 237, 0.3); -fx-border-width: 0 0 0 1; -fx-background-color: transparent;">
+            
+            <TabPane fx:id="mainTabPane" tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS" styleClass="booking-tabs">
+                <!-- Tab 1: Booking Info -->
+                <Tab fx:id="bookingTab" text="Booking">
+                    <StackPane fx:id="bookingInfoPane" style="-fx-padding: 20;">
+                        <Label text="Select a slot to view booking details" style="-fx-text-fill: #94A3B8; -fx-font-size: 14px;"/>
+                    </StackPane>
+                </Tab>
+                
+                <!-- Tab 2: Pricing Details -->
+                <Tab fx:id="pricingTab" text="Pricing">
+                    <StackPane fx:id="pricingPane" style="-fx-padding: 20;">
+                        <VBox spacing="15" alignment="TOP_LEFT">
+                            <Label text="Pricing Breakdown" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: white;"/>
+                            <Label text="Court and equipment costs" style="-fx-text-fill: #94A3B8;"/>
+                            <Label text="No booking selected" style="-fx-text-fill: #64748B; -fx-font-style: italic; -fx-padding: 20 0 0 0;"/>
+                        </VBox>
+                    </StackPane>
+                </Tab>
+                
+                <!-- Tab 3: Cafe & Gear -->
+                <Tab fx:id="cafeTab" text="Cafe">
+                    <StackPane fx:id="cafePane" style="-fx-padding: 20;">
+                        <VBox spacing="15" alignment="TOP_LEFT">
+                            <Label text="Cafe &amp; Gear" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: white;"/>
+                            <Label text="Order snacks, drinks, and equipment" style="-fx-text-fill: #94A3B8;"/>
+                            <Label text="Select a booking first" style="-fx-text-fill: #64748B; -fx-font-style: italic; -fx-padding: 20 0 0 0;"/>
+                        </VBox>
+                    </StackPane>
+                </Tab>
+                
+                <!-- Tab 4: Receipt -->
+                <Tab fx:id="receiptTab" text="Receipt">
+                    <StackPane fx:id="receiptPane" style="-fx-padding: 20;">
+                        <VBox spacing="15" alignment="TOP_LEFT">
+                            <Label text="Receipt" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: white;"/>
+                            <Label text="View transaction summary" style="-fx-text-fill: #94A3B8;"/>
+                            <Label text="No active booking selected" style="-fx-text-fill: #64748B; -fx-font-style: italic; -fx-padding: 20 0 0 0;"/>
+                        </VBox>
+                    </StackPane>
+                </Tab>
+            </TabPane>
+        </VBox>
+
+    </SplitPane>
+
+</VBox>

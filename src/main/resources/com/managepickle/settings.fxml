@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.layout.FlowPane?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.Region?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.managepickle.controller.SettingsController"
+      spacing="20" style="-fx-padding: 30;">
+
+    <Label text="Venue Settings" styleClass="label-title"/>
+    
+    <!-- Theme Colors Config -->
+    <VBox spacing="10" styleClass="card">
+        <Label text="Theme Colors" style="-fx-font-weight: bold; -fx-font-size: 16px;"/>
+        <GridPane vgap="15" hgap="15">
+            <?import javafx.scene.control.ColorPicker?>
+            
+            <Label text="Brand Color (Purple):" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+            <ColorPicker fx:id="brandColorPicker" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+            
+            <Label text="Outline Color (Green):" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+            <ColorPicker fx:id="outlineColorPicker" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+            
+            <Label text="Navbar Color:" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+            <ColorPicker fx:id="navbarColorPicker" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+            
+            <Label text="Background Color:" GridPane.columnIndex="0" GridPane.rowIndex="3"/>
+            <ColorPicker fx:id="backgroundColorPicker" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+            
+            <Label text="Panel Color:" GridPane.columnIndex="0" GridPane.rowIndex="4"/>
+            <ColorPicker fx:id="panelColorPicker" GridPane.columnIndex="1" GridPane.rowIndex="4"/>
+
+            <Label text="Text Color:" GridPane.columnIndex="0" GridPane.rowIndex="5"/>
+            <ColorPicker fx:id="textColorPicker" GridPane.columnIndex="1" GridPane.rowIndex="5"/>
+        </GridPane>
+    </VBox>
+    
+    <!-- Branding & Resources -->
+    <VBox spacing="10" styleClass="card">
+        <Label text="Branding &amp; Resources" style="-fx-font-weight: bold; -fx-font-size: 16px;"/>
+        <GridPane vgap="15" hgap="15">
+            <Label text="Venue Logo:" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+            <HBox spacing="10" alignment="CENTER_LEFT" GridPane.columnIndex="1" GridPane.rowIndex="0">
+                <javafx.scene.image.ImageView fx:id="logoPreview" fitHeight="40" preserveRatio="true"/>
+                <Button text="Change Logo" onAction="#handleChangeLogo"/>
+            </HBox>
+
+            <Label text="Resource Name (Singular):" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+            <javafx.scene.control.TextField fx:id="resourceNameField" prefWidth="200" GridPane.columnIndex="1" GridPane.rowIndex="1" promptText="e.g. Court"/>
+
+            <Label text="Resource Name (Plural):" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+            <javafx.scene.control.TextField fx:id="resourceNamePluralField" prefWidth="200" GridPane.columnIndex="1" GridPane.rowIndex="2" promptText="e.g. Courts"/>
+
+            <Label text="Min. Slot Duration (Mins):" GridPane.columnIndex="0" GridPane.rowIndex="3"/>
+            <ComboBox fx:id="minSlotDurationField" prefWidth="200" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+        </GridPane>
+    </VBox>
+    
+    <HBox alignment="CENTER_RIGHT">
+        <Label fx:id="statusLabel" style="-fx-padding: 0 20 0 0; -fx-text-fill: -color-secondary;"/>
+        <Button text="Save Changes" onAction="#handleSave" prefWidth="200"/>
+    </HBox>
+
+</VBox>

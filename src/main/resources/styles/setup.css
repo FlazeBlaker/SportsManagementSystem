@@ -1,0 +1,199 @@
+/* ==================================
+   PREMIUM SETUP WIZARD STYLES
+   Glass & Glow Design with Curves and Depth
+   ================================== */
+
+/* Root Container - Transparent Background */
+.setup-root {
+    -fx-background-color: transparent;
+    -fx-padding: 40;
+}
+
+/* Main Content Container - Transparent Overlay + Crisp Border */
+.setup-container {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+    -fx-border-color: linear-gradient(to bottom,
+            rgba(255, 255, 255, 0.25),
+            rgba(124, 58, 237, 0.1));
+    -fx-border-width: 1.5;
+}
+
+/* Glass Pane - The actual background that gets blurred */
+.glass-background {
+    -fx-background-color: linear-gradient(135deg,
+            rgba(15, 23, 42, 0.40) 0%,
+            rgba(30, 41, 59, 0.50) 100%);
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.6), 40, 0.3, 0, 20);
+}
+
+/* ============ SIDEBAR STYLES ============ */
+
+.setup-sidebar {
+    -fx-background-color: linear-gradient(180deg,
+            rgba(20, 25, 40, 0.30) 0%,
+            rgba(15, 20, 35, 0.50) 100%);
+    -fx-background-radius: 0;
+    -fx-padding: 32 24;
+    -fx-border-color: rgba(255, 255, 255, 0.05);
+    -fx-border-width: 0 1 0 0;
+}
+
+.sidebar-header {
+    -fx-padding: 0 0 32 0;
+    -fx-border-color: rgba(124, 58, 237, 0.3);
+    -fx-border-width: 0 0 2 0;
+    -fx-spacing: 8;
+}
+
+.sidebar-title {
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-text-fill: linear-gradient(to right, #A78BFA, #7C3AED);
+    -fx-effect: dropshadow(gaussian, rgba(124, 58, 237, 0.6), 8, 0, 0, 2);
+}
+
+.sidebar-subtitle {
+    -fx-font-size: 13px;
+    -fx-text-fill: rgba(255, 255, 255, 0.5);
+    -fx-font-style: italic;
+}
+
+.steps-list {
+    -fx-padding: 24 0 0 0;
+    -fx-spacing: 6;
+}
+
+/* Step Item - Default State */
+.step-item {
+    -fx-background-color: rgba(255, 255, 255, 0.02);
+    -fx-background-radius: 16;
+    -fx-padding: 16 20;
+    -fx-cursor: hand;
+    -fx-border-color: rgba(255, 255, 255, 0.05);
+    -fx-border-width: 1;
+    -fx-border-radius: 16;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.2), 4, 0, 0, 2);
+}
+
+.step-item:hover {
+    -fx-background-color: rgba(124, 58, 237, 0.12);
+    -fx-border-color: rgba(124, 58, 237, 0.3);
+    -fx-scale-x: 1.02;
+    -fx-scale-y: 1.02;
+    -fx-effect: dropshadow(gaussian, rgba(124, 58, 237, 0.4), 12, 0, 0, 4);
+}
+
+/* Step Item - Active (Current) */
+.step-item-active {
+    -fx-background-color: linear-gradient(135deg,
+            rgba(124, 58, 237, 0.25) 0%,
+            rgba(167, 139, 250, 0.15) 100%);
+    -fx-background-radius: 16;
+    -fx-padding: 16 20;
+    -fx-border-color: #A78BFA;
+    -fx-border-width: 2;
+    -fx-border-radius: 16;
+    -fx-effect: dropshadow(gaussian, rgba(124, 58, 237, 0.6), 16, 0, 0, 6),
+        innerglow(rgba(167, 139, 250, 0.3));
+}
+
+/* Step Item - Completed */
+.step-item-completed {
+    -fx-background-color: rgba(16, 185, 129, 0.08);
+    -fx-border-color: rgba(16, 185, 129, 0.4);
+    -fx-opacity: 0.7;
+}
+
+.step-number {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: rgba(255, 255, 255, 0.4);
+}
+
+.step-item-active .step-number {
+    -fx-text-fill: #A78BFA;
+    -fx-effect: dropshadow(gaussian, rgba(167, 139, 250, 0.8), 6, 0, 0, 0);
+}
+
+.step-name {
+    -fx-font-size: 15px;
+    -fx-font-weight: 600;
+    -fx-text-fill: rgba(255, 255, 255, 0.8);
+}
+
+.step-item-active .step-name {
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+}
+
+/* ============ CONTENT AREA STYLES ============ */
+
+.setup-content {
+    -fx-padding: 40 48 32 48;
+    -fx-background-color: transparent;
+    -fx-background-radius: 0 32 32 0;
+}
+
+.content-header {
+    -fx-padding: 0 0 24 0;
+    -fx-border-color: rgba(255, 255, 255, 0.08);
+    -fx-border-width: 0 0 1.5 0;
+}
+
+.content-title {
+    -fx-font-size: 28px;
+    -fx-font-weight: bold;
+    -fx-text-fill: white;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.4), 4, 0, 0, 2);
+}
+
+.content-subtitle {
+    -fx-font-size: 14px;
+    -fx-text-fill: rgba(255, 255, 255, 0.6);
+}
+
+.content-area {
+    -fx-background-color: rgba(255, 255, 255, 0.02);
+    -fx-background-radius: 20;
+    -fx-padding: 28;
+    -fx-border-color: rgba(255, 255, 255, 0.06);
+    -fx-border-width: 1;
+    -fx-border-radius: 20;
+    -fx-effect: innershadow(gaussian, rgba(0, 0, 0, 0.2), 10, 0, 0, 2);
+}
+
+.content-footer {
+    -fx-padding: 24 0 0 0;
+    -fx-spacing: 14;
+}
+
+/* ============ SCROLLPANE STYLES ============ */
+
+.steps-scroll {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.steps-scroll>.viewport {
+    -fx-background-color: transparent;
+}
+
+/* Hide scrollbar track but keep thumb for scrolling */
+.steps-scroll .scroll-bar:vertical {
+    -fx-background-color: transparent;
+    -fx-pref-width: 8px;
+}
+
+.steps-scroll .scroll-bar:vertical .track {
+    -fx-background-color: transparent;
+}
+
+.steps-scroll .scroll-bar:vertical .thumb {
+    -fx-background-color: rgba(167, 139, 250, 0.3);
+    -fx-background-radius: 4;
+}
+
+.steps-scroll .scroll-bar:vertical .thumb:hover {
+    -fx-background-color: rgba(167, 139, 250, 0.5);
+}
