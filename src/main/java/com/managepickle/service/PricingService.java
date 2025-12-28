@@ -100,7 +100,7 @@ public class PricingService {
 
         LocalTime time = dateTime.toLocalTime();
         LocalTime open = LocalTime.of(hours.getStartHour(), 0);
-        LocalTime close = LocalTime.of(hours.getEndHour(), 0);
+        LocalTime close = (hours.getEndHour() == 24) ? LocalTime.MAX : LocalTime.of(hours.getEndHour(), 0);
 
         return !time.isBefore(open) && time.isBefore(close);
     }
@@ -132,7 +132,7 @@ public class PricingService {
                 int start = LocalTime.parse(rule.getOpenTime()).getHour();
                 LocalTime close = LocalTime.parse(rule.getCloseTime());
                 // If close is 00:00, treat as midnight (hour 24), so last slot starts at 23
-                int end = close.equals(LocalTime.MIN) ? 23 : close.getHour();
+                int end = close.equals(LocalTime.MIN) ? 24 : close.getHour();
                 return OperatingHours.builder()
                         .startHour(start)
                         .endHour(end)

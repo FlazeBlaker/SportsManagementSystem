@@ -1,6 +1,6 @@
 {
   "openingTime": "06:00",
-  "closingTime": "23:00",
+  "closingTime": "00:00",
   "courts": [
     {
       "id": 1,
@@ -9,36 +9,11 @@
       "environmentType": "Indoor",
       "hourlyRate": 0.0,
       "useGlobalRates": true
-    },
-    {
-      "id": 2,
-      "name": "2",
-      "iconCode": "mdmz-sports_tennis",
-      "environmentType": "Indoor",
-      "hourlyRate": 0.0,
-      "useGlobalRates": true
-    },
-    {
-      "id": 3,
-      "name": "3",
-      "iconCode": "mdmz-sports_tennis",
-      "environmentType": "Indoor",
-      "hourlyRate": 0.0,
-      "useGlobalRates": true
-    },
-    {
-      "id": 4,
-      "name": "4",
-      "iconCode": "mdmz-sports_tennis",
-      "environmentType": "Indoor",
-      "hourlyRate": 0.0,
-      "useGlobalRates": true
     }
   ],
   "resourceName": "Court",
   "resourceNamePlural": "Courts",
-  "minSlotDuration": 60,
-  "venueLogoPath": "C:\\Users\\Jay Pawar\\OneDrive\\Pictures\\AceAlleyLogo.jpeg",
+  "minSlotDuration": 90,
   "brandColor": "#7C3AED",
   "navbarColor": "rgba(30, 41, 59, 0.85)",
   "panelColor": "#1E293B",
@@ -47,8 +22,8 @@
   "backgroundColor": "#0F172A",
   "currencySymbol": "₹",
   "hasCafe": true,
-  "hasRentals": true,
-  "hasProducts": true,
+  "hasRentals": false,
+  "hasProducts": false,
   "cafeMenu": [
     {
       "name": "water",
@@ -56,20 +31,8 @@
       "category": "drink"
     }
   ],
-  "rentalOptions": [
-    {
-      "name": "Paddle",
-      "price": 50.0,
-      "type": "HOURLY"
-    }
-  ],
-  "productCatalog": [
-    {
-      "name": "Ace Alley Paddle",
-      "price": 3000.0,
-      "category": "Paddle"
-    }
-  ],
+  "rentalOptions": [],
+  "productCatalog": [],
   "operatingSchedule": [
     {
       "name": "Weekdays",
@@ -92,8 +55,8 @@
         "SUNDAY"
       ],
       "openTime": "06:00",
-      "closeTime": "23:00",
-      "is24Hours": true,
+      "closeTime": "00:00",
+      "is24Hours": false,
       "isClosed": false
     }
   ],
@@ -108,7 +71,7 @@
         "THURSDAY",
         "FRIDAY"
       ],
-      "startTime": "00:00",
+      "startTime": "06:00",
       "endTime": "00:00"
     },
     {
@@ -118,7 +81,7 @@
         "SATURDAY",
         "SUNDAY"
       ],
-      "startTime": "00:00",
+      "startTime": "06:00",
       "endTime": "00:00"
     }
   ]

@@ -1910,11 +1910,13 @@ public class SetupWizardController {
                     if (op.isClosed())
                         continue;
 
-                    LocalTime start = op.is24Hours() ? LocalTime.MIN : LocalTime.parse(op.getOpenTime());
+                    LocalTime start = op.is24Hours() ? LocalTime.MIN
+                            : LocalTime.parse("24:00".equals(op.getOpenTime()) ? "00:00" : op.getOpenTime());
 
                     // Handle "00:00" as end of day if it occurs as closeTime
                     String closeStr = op.getCloseTime();
-                    LocalTime end = op.is24Hours() ? LocalTime.of(23, 59) : LocalTime.parse(closeStr);
+                    LocalTime end = op.is24Hours() ? LocalTime.of(23, 59)
+                            : LocalTime.parse("24:00".equals(closeStr) ? "00:00" : closeStr);
                     if (!op.is24Hours() && (end.equals(LocalTime.MIN) || end.isBefore(start))) {
                         end = LocalTime.MAX;
                     }
@@ -1929,8 +1931,8 @@ public class SetupWizardController {
             List<Interval> rateIntervals = new ArrayList<>();
             for (PricingRule pr : ratesList) {
                 if (pr.getDays().contains(day)) {
-                    LocalTime start = LocalTime.parse(pr.getStartTime());
-                    LocalTime end = LocalTime.parse(pr.getEndTime());
+                    LocalTime start = LocalTime.parse("24:00".equals(pr.getStartTime()) ? "00:00" : pr.getStartTime());
+                    LocalTime end = LocalTime.parse("24:00".equals(pr.getEndTime()) ? "00:00" : pr.getEndTime());
                     // Normalize end time
                     if (end.equals(LocalTime.MIN) || end.isBefore(start)) {
                         end = LocalTime.MAX;

@@ -46,7 +46,9 @@ public class BookingDialogController {
     @FXML
     private Label courtPriceLabel;
     @FXML
-    private Label extrasPriceLabel;
+    private Label gearPriceLabel;
+    @FXML
+    private Label cafePriceLabel;
     @FXML
     private Label priceLabel;
     @FXML
@@ -106,7 +108,24 @@ public class BookingDialogController {
 
         // Add Listeners for Price Calculation
         courtComboBox.setOnAction(e -> calculatePrice());
-        startTimeComboBox.setOnAction(e -> calculatePrice());
+        startTimeComboBox.setOnAction(e -> {
+            String startVal = startTimeComboBox.getValue();
+            if (startVal != null && !"CLOSED".equals(startVal)) {
+                try {
+                    LocalTime sTime = LocalTime.parse(startVal);
+                    updateEndTimeOptions(sTime);
+
+                    // Auto-select first option (minimum duration)
+                    if (!endTimeComboBox.getItems().isEmpty()) {
+                        endTimeComboBox.setValue(endTimeComboBox.getItems().get(0));
+                    }
+
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            }
+            calculatePrice();
+        });
         endTimeComboBox.setOnAction(e -> calculatePrice());
 
     }
@@ -127,10 +146,25 @@ public class BookingDialogController {
         startTimeComboBox.setPromptText("Start Time");
         endTimeComboBox.setPromptText("End Time");
 
-        for (int i = hours.getStartHour(); i <= hours.getEndHour(); i++) {
-            String time = String.format("%02d:00", i);
-            startTimeComboBox.getItems().add(time);
-            endTimeComboBox.getItems().add(time);
+        int minDuration = com.managepickle.utils.ConfigManager.getConfig().getMinSlotDuration();
+        // Use robust minute-based math to handle 24h/midnight boundary cleanly
+        int startMinutes = hours.getStartHour() * 60;
+        int endMinutes = hours.getEndHour() * 60; // e.g. 24 * 60 = 1440
+        int currentMinutes = startMinutes;
+
+        while (currentMinutes < endMinutes) {
+            // Check if this slot fits within operating hours
+            // Condition: current + duration <= end
+            // Special check: If exact match (current + dur == end), it's valid.
+            if (currentMinutes + minDuration <= endMinutes) {
+                LocalTime t = LocalTime.of((currentMinutes / 60) % 24, currentMinutes % 60);
+                String timeStr = String.format("%02d:%02d", t.getHour(), t.getMinute());
+                startTimeComboBox.getItems().add(timeStr);
+            }
+
+            currentMinutes += minDuration;
+            if (minDuration <= 0)
+                break;
         }
     }
 
@@ -159,28 +193,84 @@ public class BookingDialogController {
                     endDT = endDT.plusDays(1);
                 }
 
+                double courtCost = 0.0;
+                double gearTotal = 0.0;
+                double cafeTotal = 0.0;
+
                 if (endDT.isAfter(startDT)) {
-                    courtCostTotal = com.managepickle.service.PricingService.calculateCourtCost(selectedCourt, startDT,
+                    courtCost = com.managepickle.service.PricingService.calculateCourtCost(selectedCourt, startDT,
                             endDT);
 
-                    // Calculate Extras
-                    double grandTotal = courtCostTotal;
-                    com.managepickle.model.AppConfig config = com.managepickle.utils.ConfigManager.getConfig();
-                    String symbol = config.getCurrencySymbol() != null ? config.getCurrencySymbol() : "₹";
+                    // Calculate Extras from Editing Booking (if any)
+                    if (editingBooking != null) {
+                        String itemsJson = editingBooking.getCafeItems();
+                        if (itemsJson != null && !itemsJson.isEmpty()) {
+                            try {
+                                JSONObject json = new JSONObject(itemsJson);
+                                JSONArray items = json.optJSONArray("items");
+                                if (items != null) {
+                                    // Get Rental Options to distinguish
+                                    List<com.managepickle.model.RentalOption> rentalOptions = com.managepickle.utils.ConfigManager
+                                            .getConfig().getRentalOptions();
 
-                    courtPriceLabel.setText(String.format("%s%.2f", symbol, courtCostTotal));
-                    extrasPriceLabel.setText("0.00");
-                    priceLabel.setText(String.format("%s%.2f", symbol, grandTotal));
+                                    for (int i = 0; i < items.length(); i++) {
+                                        JSONObject item = items.getJSONObject(i);
+                                        String name = item.optString("name", "");
+                                        double cost = item.optDouble("total", 0.0);
+                                        if (cost == 0) {
+                                            cost = item.optDouble("price", 0.0) * item.optInt("qty", 0);
+                                        }
+
+                                        // Check if it's a rental (Gear)
+                                        boolean isRental = false;
+                                        if (rentalOptions != null) {
+                                            for (com.managepickle.model.RentalOption ro : rentalOptions) {
+                                                if (ro.getName().equalsIgnoreCase(name)) {
+                                                    isRental = true;
+                                                    break;
+                                                }
+                                            }
+                                        }
+
+                                        if (isRental) {
+                                            gearTotal += cost;
+                                        } else {
+                                            cafeTotal += cost;
+                                        }
+                                    }
+                                }
+                            } catch (Exception ex) {
+                                System.err.println("Error parsing extras: " + ex.getMessage());
+                            }
+                        }
+                    }
                 } else {
-                    priceLabel.setText("Invalid Time Range");
+                    priceLabel.setText("Invalid Range");
+                    return;
                 }
+
+                double grandTotal = courtCost + gearTotal + cafeTotal;
+                com.managepickle.model.AppConfig config = com.managepickle.utils.ConfigManager.getConfig();
+                String symbol = config.getCurrencySymbol() != null ? config.getCurrencySymbol() : "₹";
+
+                courtPriceLabel.setText(String.format("%s%.2f", symbol, courtCost));
+                if (gearPriceLabel != null)
+                    gearPriceLabel.setText(String.format("%s%.2f", symbol, gearTotal));
+                if (cafePriceLabel != null)
+                    cafePriceLabel.setText(String.format("%s%.2f", symbol, cafeTotal));
+                priceLabel.setText(String.format("%s%.2f", symbol, grandTotal));
+
             } else {
                 courtPriceLabel.setText("0.00");
-                extrasPriceLabel.setText("0.00");
+                if (gearPriceLabel != null)
+                    gearPriceLabel.setText("0.00");
+                if (cafePriceLabel != null)
+                    cafePriceLabel.setText("0.00");
                 priceLabel.setText("0.00");
             }
         } catch (Exception e) {
             priceLabel.setText("Error");
+            e.printStackTrace();
         }
     }
 
@@ -197,18 +287,22 @@ public class BookingDialogController {
 
         if (startTime != null) {
             // Find the matching string in the combobox
-            String timeStr = startTime.toString();
-            if (timeStr.length() == 5)
-                timeStr += ":00"; // Ensure format matches HH:MM:00 if needed, but our combo uses 06:00
-            // Actually our combo assumes HH:MM format from the loop
-            String formattedTime = String.format("%02d:00", startTime.getHour());
+            String formattedTime = String.format("%02d:%02d", startTime.getHour(), startTime.getMinute());
 
             startTimeComboBox.setValue(formattedTime);
             startTimeComboBox.setDisable(true); // Lock start time
 
-            // Auto-set end time to +1 hour
-            LocalTime endTime = startTime.plusHours(1);
-            String formattedEndTime = String.format("%02d:00", endTime.getHour());
+            // Explicitly populate End Time options for this Start Time
+            updateEndTimeOptions(startTime);
+
+            // Auto-set end time to + minDuration
+            int minDur = com.managepickle.utils.ConfigManager.getConfig().getMinSlotDuration();
+            LocalTime endTime = startTime.plusMinutes(minDur);
+
+            // Handle midnight specifically if needed, or format
+            String formattedEndTime = (endTime.equals(LocalTime.MIN)) ? "00:00"
+                    : String.format("%02d:%02d", endTime.getHour(), endTime.getMinute());
+
             endTimeComboBox.setValue(formattedEndTime);
 
             // Set date to today (or passed date if we supported that)
@@ -216,6 +310,35 @@ public class BookingDialogController {
         }
 
         calculatePrice();
+    }
+
+    private void updateEndTimeOptions(LocalTime sTime) {
+        endTimeComboBox.getItems().clear();
+        try {
+            int minDur = com.managepickle.utils.ConfigManager.getConfig().getMinSlotDuration();
+            LocalDate date = datePicker.getValue() != null ? datePicker.getValue() : LocalDate.now();
+            com.managepickle.model.OperatingHours hours = com.managepickle.service.PricingService
+                    .getOperatingHours(date);
+            LocalTime closingTime = (hours.getEndHour() == 24) ? LocalTime.MAX : LocalTime.of(hours.getEndHour(), 0);
+
+            // Add valid end times: Start + n * MinDuration
+            LocalTime nextEnd = sTime.plusMinutes(minDur);
+            while (!nextEnd.isAfter(closingTime) && !nextEnd.equals(LocalTime.MAX) && nextEnd.isAfter(sTime)) {
+                String eStr = String.format("%02d:%02d", nextEnd.getHour(), nextEnd.getMinute());
+                endTimeComboBox.getItems().add(eStr);
+                nextEnd = nextEnd.plusMinutes(minDur);
+            }
+
+            // Handle 00:00 (Midnight) explicitly if closing matches
+            if (hours.getEndHour() == 24) {
+                LocalTime potentialMidnight = nextEnd; // already added minDur
+                if (potentialMidnight.equals(LocalTime.MIN)) {
+                    endTimeComboBox.getItems().add("00:00");
+                }
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
     }
 
     private Booking editingBooking = null;
@@ -241,10 +364,15 @@ public class BookingDialogController {
 
         datePicker.setValue(booking.getStartTime().toLocalDate());
 
-        String startStr = String.format("%02d:00", booking.getStartTime().getHour());
-        String endStr = String.format("%02d:00", booking.getEndTime().getHour());
+        String startStr = String.format("%02d:%02d", booking.getStartTime().getHour(),
+                booking.getStartTime().getMinute());
+        String endStr = String.format("%02d:%02d", booking.getEndTime().getHour(), booking.getEndTime().getMinute());
 
         startTimeComboBox.setValue(startStr);
+
+        // Ensure End Time options are populated!
+        updateEndTimeOptions(booking.getStartTime().toLocalTime());
+
         endTimeComboBox.setValue(endStr);
 
         // Find matching court in combobox
@@ -288,8 +416,16 @@ public class BookingDialogController {
                 return;
             }
 
-            LocalDateTime start = LocalDateTime.of(date, LocalTime.parse(startStr));
-            LocalDateTime end = LocalDateTime.of(date, LocalTime.parse(endStr));
+            LocalTime sTime = LocalTime.parse(startStr);
+            LocalTime eTime = LocalTime.parse(endStr);
+
+            LocalDateTime start = LocalDateTime.of(date, sTime);
+            LocalDateTime end = LocalDateTime.of(date, eTime);
+
+            // Handle midnight crossing (e.g. 23:00 -> 00:00)
+            if (eTime.equals(LocalTime.MIN) && !sTime.equals(LocalTime.MIN)) {
+                end = end.plusDays(1);
+            }
 
             if (end.isBefore(start) || end.equals(start)) {
                 showWarning("⚠️ End time must be after start time");

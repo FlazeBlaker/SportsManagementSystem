@@ -192,22 +192,39 @@ public class BookingsController {
         int row = 0;
         LocalTime currentTime = LocalTime.now();
 
-        for (int h = startHour; h <= endHour; h++) {
+        int minDuration = com.managepickle.utils.ConfigManager.getConfig().getMinSlotDuration();
+        // Use minutes for robust iteration
+        int startMinutes = startHour * 60;
+        int endMinutes = endHour * 60; // e.g. 24*60 = 1440
+        int currentMinutes = startMinutes;
+
+        // Loop while current slot starts before closing time
+        while (currentMinutes < endMinutes) {
+            // Calculate LocalTime for this slot
+            final LocalTime thisSlotTime = LocalTime.of((currentMinutes / 60) % 24, currentMinutes % 60);
+
+            // Only render if slot fits (current + duration <= end)
+            // (Strictly enforce that last slot ends AT OR BEFORE closing time)
+            if (currentMinutes + minDuration > endMinutes) {
+                break;
+            }
+
             try {
                 VBox timeBlock = new VBox(5);
                 timeBlock.setPrefHeight(70);
                 timeBlock.setPrefWidth(70);
                 timeBlock.setAlignment(Pos.TOP_RIGHT);
 
-                Label hourLabel = new Label(String.format("%02d:00", h));
+                Label hourLabel = new Label(
+                        String.format("%02d:%02d", thisSlotTime.getHour(), thisSlotTime.getMinute()));
                 hourLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: white;");
 
-                Label periodLabel = new Label(h < 12 ? "AM" : "PM");
+                Label periodLabel = new Label(thisSlotTime.getHour() < 12 ? "AM" : "PM");
                 periodLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: #64748B;");
 
                 timeBlock.getChildren().addAll(hourLabel, periodLabel);
 
-                if (h == currentTime.getHour()) {
+                if (thisSlotTime.getHour() == currentTime.getHour()) {
                     timeBlock.setStyle(
                             "-fx-background-color: rgba(124, 58, 237, 0.2); -fx-background-radius: 12; -fx-padding: 10;");
                 }
@@ -216,18 +233,26 @@ public class BookingsController {
 
                 for (int col = 0; col < courts.size(); col++) {
                     try {
-                        StackPane slot = createPremiumSlot(courts.get(col), h);
+                        StackPane slot = createPremiumSlot(courts.get(col), thisSlotTime, minDuration);
                         bookingGrid.add(slot, col, row);
                     } catch (Exception slotEx) {
                         System.err.println(
-                                "Error creating slot for court " + col + " hour " + h + ": " + slotEx.getMessage());
+                                "Error creating slot for court " + col + " time " + thisSlotTime + ": "
+                                        + slotEx.getMessage());
                         StackPane errorSlot = new StackPane(new Label("!"));
                         bookingGrid.add(errorSlot, col, row);
                     }
                 }
                 row++;
+
+                // Advance time
+                currentMinutes += minDuration;
+
+                // Safety break for infinite loops with 0 minDuration
+                if (minDuration <= 0)
+                    break;
             } catch (Exception rowEx) {
-                System.err.println("Error creating row for hour " + h + ": " + rowEx.getMessage());
+                System.err.println("Error creating row for time (min=" + currentMinutes + "): " + rowEx.getMessage());
             }
         }
 
@@ -238,7 +263,7 @@ public class BookingsController {
         renderPremiumBookings(courts, startHour, endHour);
     }
 
-    private StackPane createPremiumSlot(Court court, int hour) {
+    private StackPane createPremiumSlot(Court court, LocalTime startTime, int durationMinutes) {
         StackPane slot = new StackPane();
         slot.setPrefSize(200, 70);
 
@@ -253,8 +278,8 @@ public class BookingsController {
                 "-fx-cursor: hand;";
 
         // Check if there's a booking for this slot on the selected date
-        LocalDateTime slotStart = LocalDateTime.of(currentDate, LocalTime.of(hour, 0));
-        LocalDateTime slotEnd = slotStart.plusHours(1);
+        LocalDateTime slotStart = LocalDateTime.of(currentDate, startTime);
+        LocalDateTime slotEnd = slotStart.plusMinutes(durationMinutes);
 
         Booking booking = BookingDAO.getAllBookings().stream()
                 .filter(b -> b.getCourtId() == court.getId())
@@ -395,7 +420,15 @@ public class BookingsController {
                     "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 2, 0, 0, 1);");
             slot.getChildren().add(availableLabel);
 
-            slot.setOnMouseClicked(e -> handleSlotClick(court.getId(), hour));
+            slot.setOnMouseClicked(e -> handleSlotClick(court.getId(), startTime.getHour()));
+            // Note: handleSlotClick still expects int hour for now.
+            // Ideally we'd update handleSlotClick to take LocalTime too.
+            // For now, getHour() is a close approximation for "Open Dialog at this time"
+            // logic
+            // but we should pass exact time to dialog.
+            slot.setOnMouseClicked(e -> {
+                showBookingDialog(court, startTime);
+            });
 
             slot.setOnMouseEntered(e -> {
                 ScaleTransition st = new ScaleTransition(Duration.millis(200), slot);
@@ -428,6 +461,23 @@ public class BookingsController {
     private void renderPremiumBookings(List<Court> courts, int startHour, int endHour) {
         // Bookings are now rendered directly in createPremiumSlot
         // This method is kept for compatibility but does nothing
+    }
+
+    private void showBookingDialog(Court court, LocalTime startTime) {
+        try {
+            javafx.fxml.FXMLLoader fxmlLoader = new javafx.fxml.FXMLLoader(
+                    getClass().getResource("/com/managepickle/booking_dialog.fxml"));
+            javafx.scene.Parent formView = fxmlLoader.load();
+
+            BookingDialogController dialogController = fxmlLoader.getController();
+            dialogController.setParentController(this);
+            dialogController.setBookingContext(court, startTime, currentDate);
+
+            bookingInfoPane.getChildren().clear();
+            bookingInfoPane.getChildren().add(formView);
+        } catch (java.io.IOException e) {
+            e.printStackTrace();
+        }
     }
 
     private void showBookingDetails(Booking booking) {

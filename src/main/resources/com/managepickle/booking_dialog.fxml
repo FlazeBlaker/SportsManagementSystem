@@ -37,11 +37,14 @@
         <Label fx:id="courtCostLabel" text="Court Cost:" GridPane.columnIndex="0" GridPane.rowIndex="5" style="-fx-text-fill: #94A3B8; -fx-font-size: 13px;"/>
         <Label fx:id="courtPriceLabel" text="0.00" GridPane.columnIndex="1" GridPane.rowIndex="5" style="-fx-text-fill: white; -fx-font-size: 14px;"/>
 
-        <Label text="Extras Total:" GridPane.columnIndex="0" GridPane.rowIndex="6" style="-fx-text-fill: #94A3B8; -fx-font-size: 13px;"/>
-        <Label fx:id="extrasPriceLabel" text="0.00" GridPane.columnIndex="1" GridPane.rowIndex="6" style="-fx-text-fill: white; -fx-font-size: 14px;"/>
+        <Label text="Gear Rental Total:" GridPane.columnIndex="0" GridPane.rowIndex="6" style="-fx-text-fill: #94A3B8; -fx-font-size: 13px;"/>
+        <Label fx:id="gearPriceLabel" text="0.00" GridPane.columnIndex="1" GridPane.rowIndex="6" style="-fx-text-fill: white; -fx-font-size: 14px;"/>
 
-        <Label text="Payable Amount:" GridPane.columnIndex="0" GridPane.rowIndex="7" style="-fx-font-weight: bold; -fx-text-fill: white; -fx-font-size: 16px;"/>
-        <Label fx:id="priceLabel" text="0.00" GridPane.columnIndex="1" GridPane.rowIndex="7" style="-fx-font-weight: bold; -fx-font-size: 22px; -fx-text-fill: #10B981;"/>
+        <Label text="Cafe Items Total:" GridPane.columnIndex="0" GridPane.rowIndex="7" style="-fx-text-fill: #94A3B8; -fx-font-size: 13px;"/>
+        <Label fx:id="cafePriceLabel" text="0.00" GridPane.columnIndex="1" GridPane.rowIndex="7" style="-fx-text-fill: white; -fx-font-size: 14px;"/>
+
+        <Label text="Payable Amount:" GridPane.columnIndex="0" GridPane.rowIndex="8" style="-fx-font-weight: bold; -fx-text-fill: white; -fx-font-size: 16px;"/>
+        <Label fx:id="priceLabel" text="0.00" GridPane.columnIndex="1" GridPane.rowIndex="8" style="-fx-font-weight: bold; -fx-font-size: 22px; -fx-text-fill: #10B981;"/>
     </GridPane>
 
     <!-- Extras Section Removed -->

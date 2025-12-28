@@ -19,7 +19,7 @@
       spacing="0" style="-fx-padding: 30;">
 
     <!-- Premium Header with Date Selector -->
-    <HBox alignment="CENTER_LEFT" spacing="20" style="-fx-padding: 0 0 30 0;">
+    <HBox alignment="CENTER_LEFT" spacing="20" style="-fx-padding: 0 0 20 0;">
         
         <VBox spacing="8">
             <Label text="Select Date:" style="-fx-font-size: 14px; -fx-text-fill: #94A3B8;"/>
@@ -32,7 +32,7 @@
     </HBox>
 
     <!-- Main Content Area: Split View -->
-    <SplitPane dividerPositions="0.5" VBox.vgrow="ALWAYS" style="-fx-background-color: transparent; -fx-padding: 0;">
+    <SplitPane dividerPositions="0.45" VBox.vgrow="ALWAYS" style="-fx-background-color: transparent; -fx-padding: 0;">
         
         <!-- Left: Booking Grid with Headers -->
         <VBox spacing="20">
@@ -58,7 +58,7 @@
         </VBox>
 
         <!-- Right: Side Panel (Tabbed Interface) -->
-        <VBox fx:id="sidePanel" maxWidth="800" minWidth="500" styleClass="card" style="-fx-border-color: rgba(124, 58, 237, 0.3); -fx-border-width: 0 0 0 1; -fx-background-color: transparent;">
+        <VBox fx:id="sidePanel" maxWidth="1000" minWidth="600" styleClass="card" style="-fx-border-color: rgba(124, 58, 237, 0.3); -fx-border-width: 0 0 0 1; -fx-background-color: transparent;">
             
             <TabPane fx:id="mainTabPane" tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS" styleClass="booking-tabs">
                 <!-- Tab 1: Booking Info -->
